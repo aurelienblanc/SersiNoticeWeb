@@ -1,0 +1,54 @@
+name: Version web
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: sersi_test
+          POSTGRES_USER: sersi
+          POSTGRES_PASSWORD: test-only-password
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U sersi -d sersi_test"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Configuration Docker de test
+        run: python -c "import secrets; print('SERSI_SECRET_KEY='+secrets.token_urlsafe(64)); print('POSTGRES_PASSWORD='+secrets.token_urlsafe(48))" > .env
+      - run: pip install -r requirements.lock
+      - run: python manage.py check
+      - run: python manage.py makemigrations --check --dry-run
+      - name: Tests SQLite
+        run: python manage.py test catalogue
+      - name: Tests PostgreSQL
+        run: python manage.py test catalogue
+        env:
+          POSTGRES_HOST: 127.0.0.1
+          POSTGRES_DB: sersi_test
+          POSTGRES_USER: sersi
+          POSTGRES_PASSWORD: test-only-password
+      - name: Construction et essai Docker Compose
+        shell: bash
+        run: |
+          set -eu
+          docker compose up -d --build --wait --wait-timeout 180
+          curl --fail http://127.0.0.1:8080/health/
+          curl --fail http://127.0.0.1:8080/ > /tmp/sersi-index.html
+          docker compose exec -T web python manage.py check
+      - name: Logs Docker en cas d’échec
+        if: failure()
+        run: docker compose logs --tail=60
+      - name: Arrêt des conteneurs
+        if: always()
+        run: docker compose down

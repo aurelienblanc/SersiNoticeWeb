@@ -1,0 +1,12 @@
+runtime/
+staticfiles/
+**/__pycache__/
+*.pyc
+.env
+.venv/
+.venv-web/
+.git/
+.github/
+.tmp/
+.migration-backup/
+backups/

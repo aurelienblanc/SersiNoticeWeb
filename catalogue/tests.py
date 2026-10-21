@@ -1,0 +1,225 @@
+import io
+import sqlite3
+import tempfile
+import zipfile
+from datetime import timedelta
+from pathlib import Path
+from unittest.mock import patch
+
+from django.conf import settings
+from django.core import signing
+from django.core.exceptions import ValidationError
+from django.core.files.base import ContentFile
+from django.core.management import call_command
+from django.core.management.base import CommandError
+from django.test import Client, TestCase, override_settings
+from django.utils import timezone
+
+from .exports import build_plan, create_archive, folder_path
+from .forms import SelectionForm
+from .management.commands.import_legacy import FileResolver
+from .models import Categorie, Document, DossierCible, ExportRecord, Marque, Produit, Systeme, TypeDocument, TypeExport
+from .views import TOKEN_SALT
+
+
+class ExportTests(TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(dir=settings.RUNTIME_DIR)
+        self.addCleanup(self.temp.cleanup)
+        override = override_settings(MEDIA_ROOT=Path(self.temp.name), STORAGES={
+            'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+            'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+        })
+        override.enable()
+        self.addCleanup(override.disable)
+        self.brand = Marque.objects.create(nom='SERSI')
+        self.category = Categorie.objects.create(nom='Alarmes')
+        self.system = Systeme.objects.create(nom='Type 4')
+        self.export = TypeExport.objects.create(libelle='DOE')
+        self.kind = TypeDocument.objects.create(nom='Notice', type_export=self.export)
+        self.folder = DossierCible.objects.create(nom='Notices', chemin_relatif='Notices')
+        self.child = DossierCible.objects.create(nom='ECS', chemin_relatif='ECS', parent=self.folder)
+        self.product = Produit.objects.create(reference='REF-01', nom='Centrale', marque=self.brand, categorie=self.category)
+        self.product.systemes.add(self.system)
+        self.doc = self.new_document('Notice', 'notice.pdf')
+        self.data = {'produits': [self.product.pk], 'types_export': [self.export.pk], 'projet': 'Chantier', 'client': 'Exemple'}
+
+    def new_document(self, name, filename=None, **kwargs):
+        doc = Document.objects.create(nom=name, type_document=self.kind, **kwargs)
+        if filename:
+            doc.fichier.save(filename, ContentFile(b'%PDF-1.4\nDocument de test'))
+        doc.dossiers.add(self.child)
+        self.product.documents.add(doc)
+        return doc
+
+    def plan(self, include_expired=False):
+        return build_plan(Produit.objects.filter(pk=self.product.pk), TypeExport.objects.filter(pk=self.export.pk), include_expired)
+
+    def selection(self):
+        form = SelectionForm(self.data)
+        self.assertTrue(form.is_valid(), form.errors)
+        return form.selection()
+
+    def test_public_catalogue_and_protected_admin(self):
+        self.assertEqual(self.client.get('/').status_code, 200)
+        self.assertEqual(self.client.get('/health/').status_code, 200)
+        self.assertEqual(self.client.get('/admin/').status_code, 302)
+
+    def test_archive_has_hierarchy_deduplicated_documents_and_manifest(self):
+        other = Produit.objects.create(reference='REF-02', nom='Second', marque=self.brand, categorie=self.category)
+        other.documents.add(self.doc)
+        plan = build_plan(Produit.objects.all(), TypeExport.objects.all())
+        self.assertEqual(len(plan.fichiers), 1)
+        archive, _ = create_archive(plan, self.selection(), Produit.objects.all())
+        self.addCleanup(archive.close)
+        with zipfile.ZipFile(archive) as contents:
+            self.assertEqual(set(contents.namelist()), {'Chantier/Notices/ECS/notice.pdf', 'Chantier/LISEZ-MOI.txt'})
+            self.assertEqual(contents.testzip(), None)
+
+    def test_same_filename_is_not_overwritten(self):
+        self.new_document('Second document', 'NOTICE.pdf')
+        names = [item.chemin.casefold() for item in self.plan().fichiers]
+        self.assertEqual(len(set(names)), 2)
+        self.assertTrue(any('_2.pdf' in name for name in names))
+
+    def test_expired_documents_are_excluded_unless_explicitly_requested(self):
+        self.doc.date_expiration = timezone.localdate() - timedelta(days=1)
+        self.doc.save()
+        self.assertEqual(len(self.plan().expires), 1)
+        self.assertFalse(self.plan().fichiers)
+        self.assertEqual(len(self.plan(True).fichiers), 1)
+
+    def test_expiration_today_is_still_valid(self):
+        self.doc.date_expiration = timezone.localdate()
+        self.doc.save()
+        self.assertEqual(len(self.plan().fichiers), 1)
+
+    def test_missing_document_requires_explicit_confirmation(self):
+        self.new_document('Document absent')
+        preview = self.client.post('/preparer/', self.data)
+        self.assertEqual(preview.status_code, 200)
+        token = preview.context['token']
+        self.assertEqual(self.client.post('/exporter/', {'selection': token}).status_code, 409)
+        response = self.client.post('/exporter/', {'selection': token, 'accepter_incomplet': 'on'})
+        self.assertEqual(response.status_code, 200)
+        contents = b''.join(response.streaming_content)
+        with zipfile.ZipFile(io.BytesIO(contents)) as archive:
+            self.assertIn('Document absent', archive.read('Chantier/LISEZ-MOI.txt').decode())
+        self.assertTrue(ExportRecord.objects.get().incomplet)
+
+    def test_file_removed_after_preview_is_detected_again(self):
+        preview = self.client.post('/preparer/', self.data)
+        Path(self.doc.fichier.path).unlink()
+        self.assertEqual(self.client.post('/exporter/', {'selection': preview.context['token']}).status_code, 409)
+
+    def test_invalid_or_expired_signature_is_rejected(self):
+        self.assertEqual(self.client.post('/exporter/', {'selection': 'forged'}).status_code, 400)
+        with patch('django.core.signing.time.time', return_value=1):
+            token = signing.dumps(self.selection(), salt=TOKEN_SALT)
+        self.assertEqual(self.client.post('/exporter/', {'selection': token}).status_code, 400)
+
+    def test_csrf_is_enforced(self):
+        client = Client(enforce_csrf_checks=True)
+        self.assertEqual(client.post('/preparer/', self.data).status_code, 403)
+
+    def test_inactive_or_unrelated_products_cannot_be_forged(self):
+        self.product.actif = False
+        self.product.save()
+        self.assertFalse(SelectionForm(self.data).is_valid())
+        self.assertTrue(SelectionForm({**self.data, 'inclure_inactifs': True}).is_valid())
+        other = Systeme.objects.create(nom='Autre système')
+        self.assertFalse(SelectionForm({**self.data, 'inclure_inactifs': True, 'systeme': other.pk}).is_valid())
+
+    def test_generic_brand_is_allowed_with_other_brands(self):
+        selected = Marque.objects.create(nom='Autre marque')
+        self.brand.generique = True
+        self.brand.save()
+        self.assertTrue(SelectionForm({**self.data, 'marque': selected.pk}).is_valid())
+
+    def test_empty_selection_or_export_types_is_rejected(self):
+        self.assertEqual(self.client.post('/preparer/', {**self.data, 'produits': []}).status_code, 400)
+        self.assertEqual(self.client.post('/preparer/', {**self.data, 'types_export': []}).status_code, 400)
+
+    def test_only_selected_export_type_is_included(self):
+        other = TypeExport.objects.create(libelle='Commercial')
+        self.assertFalse(build_plan(Produit.objects.all(), TypeExport.objects.filter(pk=other.pk)).fichiers)
+
+    def test_path_traversal_and_folder_cycles_are_rejected(self):
+        self.child.chemin_relatif = '../secret'
+        with self.assertRaises(ValidationError):
+            self.child.full_clean()
+        self.child.chemin_relatif = 'ECS'
+        self.child.save()
+        self.folder.parent = self.child
+        with self.assertRaises(ValidationError):
+            self.folder.full_clean()
+        self.folder.save()  # Simulate bad legacy data bypassing model validation.
+        with self.assertRaises(ValidationError):
+            folder_path(DossierCible.objects.get(pk=self.child.pk))
+
+    @override_settings(SERSI_EXPORT_MAX_BYTES=1)
+    def test_export_size_is_limited(self):
+        with self.assertRaises(ValidationError):
+            self.plan()
+
+    def test_private_media_is_not_routed_and_download_is_attachment(self):
+        self.assertEqual(self.client.get('/protected-media/' + self.doc.fichier.name).status_code, 404)
+        response = self.client.get(f'/documents/{self.doc.pk}/telecharger/')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('attachment', response['Content-Disposition'])
+        b''.join(response.streaming_content)  # The test client closes the stream and request once.
+
+
+class LegacyImportTests(TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(dir=settings.RUNTIME_DIR)
+        self.addCleanup(self.temp.cleanup)
+        self.directory = Path(self.temp.name)
+        self.source = self.directory / 'legacy.sqlite'
+        fixture = Path(__file__).with_name('testdata') / 'legacy.sql'
+        database = sqlite3.connect(self.source)
+        database.executescript(fixture.read_text(encoding='utf-8'))
+        database.close()
+        self.report = self.directory / 'report.csv'
+
+    def test_legacy_import_preserves_relations_and_source(self):
+        before = self.source.read_bytes()
+        call_command('import_legacy', str(self.source), report=self.report, stdout=io.StringIO())
+        self.assertEqual(Produit.objects.count(), 3)
+        self.assertEqual(Document.objects.count(), 3)
+        self.assertEqual(Produit.systemes.through.objects.count(), 4)
+        self.assertEqual(Produit.documents.through.objects.count(), 4)
+        self.assertEqual(Document.dossiers.through.objects.count(), 4)
+        self.assertEqual(self.source.read_bytes(), before)
+        # PostgreSQL sequences must allow new records after importing explicit IDs.
+        self.assertGreater(Marque.objects.create(nom='Nouvelle marque').pk, 9)
+        with self.assertRaises(CommandError):
+            call_command('import_legacy', str(self.source), report=self.report, stdout=io.StringIO())
+
+    def test_dry_run_does_not_keep_catalogue_data(self):
+        call_command('import_legacy', str(self.source), dry_run=True, report=self.report, stdout=io.StringIO())
+        self.assertFalse(Produit.objects.exists())
+        self.assertFalse(Document.objects.exists())
+
+    def test_import_failure_rolls_back_catalogue(self):
+        db = sqlite3.connect(self.source)
+        db.execute('UPDATE DossierCible SET parent_id=id WHERE id=(SELECT MIN(id) FROM DossierCible)')
+        db.commit()
+        db.close()
+        with self.assertRaises(CommandError):
+            call_command('import_legacy', str(self.source), report=self.report, stdout=io.StringIO())
+        self.assertFalse(Produit.objects.exists())
+        self.assertFalse(Marque.objects.exists())
+
+    def test_resolver_refuses_ambiguous_files_and_outside_paths(self):
+        root = self.directory / 'docs'
+        (root / 'a').mkdir(parents=True)
+        (root / 'b').mkdir()
+        (root / 'a' / 'notice.pdf').write_bytes(b'a')
+        (root / 'b' / 'notice.pdf').write_bytes(b'b')
+        outside = self.directory / 'secret.pdf'
+        outside.write_bytes(b'private')
+        resolver = FileResolver(root, ['Z:\\Documents=' + str(root)])
+        self.assertIsNone(resolver.resolve('X:\\notice.pdf')[0])
+        self.assertIsNone(resolver.resolve(str(outside))[0])
+        self.assertEqual(resolver.resolve('Z:\\Documents\\a\\notice.pdf')[0], (root / 'a' / 'notice.pdf').resolve())

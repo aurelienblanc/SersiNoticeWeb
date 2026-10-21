@@ -1,0 +1,58 @@
+name: sersi-notice-web
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sersi
+      POSTGRES_USER: sersi
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Définir POSTGRES_PASSWORD dans .env}
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U sersi -d sersi]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [backend]
+  web:
+    build: .
+    restart: unless-stopped
+    environment:
+      SERSI_DEBUG: '0'
+      SERSI_DATA_DIR: /data
+      SERSI_SECRET_KEY: ${SERSI_SECRET_KEY:?Définir SERSI_SECRET_KEY dans .env}
+      SERSI_ALLOWED_HOSTS: ${SERSI_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      SERSI_TRUSTED_ORIGINS: ${SERSI_TRUSTED_ORIGINS:-}
+      SERSI_HTTPS: ${SERSI_HTTPS:-0}
+      SERSI_TRUST_PROXY: '1'
+      POSTGRES_HOST: db
+      POSTGRES_DB: sersi
+      POSTGRES_USER: sersi
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Définir POSTGRES_PASSWORD dans .env}
+    volumes:
+      - documents:/data
+    depends_on:
+      db: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen(urllib.request.Request('http://127.0.0.1:8000/health/', headers={'Host':'localhost'}), timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks: [backend]
+  proxy:
+    image: nginx:stable-alpine
+    restart: unless-stopped
+    ports:
+      - '${SERSI_BIND_ADDRESS:-127.0.0.1}:${SERSI_PORT:-8080}:80'
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      web: {condition: service_healthy}
+    networks: [backend]
+volumes:
+  database:
+  documents:
+networks:
+  backend:

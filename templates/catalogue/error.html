@@ -1,0 +1,2 @@
+{% extends 'catalogue/base.html' %}
+{% block content %}<div class="page-heading"><div><span class="eyebrow">DOSSIER DOCUMENTAIRE</span><h1>Le dossier doit être préparé à nouveau<span class="orange">.</span></h1></div></div><div class="alert error" role="alert">{{ message }}</div><a class="button primary" href="{% url 'index' %}">Revenir au catalogue</a>{% endblock %}
