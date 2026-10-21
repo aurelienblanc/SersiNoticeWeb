@@ -43,7 +43,7 @@ class JournalFilterForm(forms.Form):
 
 
 class BackupUploadForm(forms.Form):
-    archive = forms.FileField(label='Archive de sauvegarde SERSI Notice', widget=forms.FileInput(attrs={'accept': '.zip'}))
+    archive = forms.FileField(label='Archive de sauvegarde SERSI Notices', widget=forms.FileInput(attrs={'accept': '.zip'}))
 
     def clean_archive(self):
         file = self.cleaned_data['archive']

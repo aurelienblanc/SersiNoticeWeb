@@ -1,4 +1,4 @@
-# SERSI Notice — version web intranet
+# SERSI Notices — version web intranet
 
 Première version fonctionnelle pour les collaborateurs du Groupe SERSI, accessible sans compte sur le réseau interne ou le VPN. L’administration est protégée par un mot de passe commun, sans identifiant ni gestion d’utilisateurs ou de groupes. Aucun appel à un service cloud ni aucune police, bibliothèque ou ressource distante n’est nécessaire aux utilisateurs.
 

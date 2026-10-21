@@ -21,7 +21,8 @@ body { font-family: var(--font-family-primary); font-size: 13px; line-height: 1.
 a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid #e97627; outline-offset: 3px; }
 #header { min-height: 88px; padding: 16px 30px; gap: 20px; }
 .admin-brand { display: inline-flex; align-items: center; gap: 13px; color: #fff !important; font-size: 21px; font-weight: 650; letter-spacing: 2px; text-decoration: none; }
-.brand-logo { background: #fff; padding: 5px; border-radius: 8px; width: 54px; height: 54px; display: inline-flex; }
+.brand-logo { background: #fff; padding: 5px; border-radius: 8px; width: 54px; height: 54px; display: inline-flex; flex-shrink: 0; }
+.brand-name { min-width: 0; letter-spacing: .2px; }
 .brand-logo img { width: 100%; height: 100%; object-fit: contain; }
 .admin-brand small { display: block; color: #acbbc5; font-size: 8px; letter-spacing: 1.6px; font-weight: 400; margin-top: 2px; }
 .admin-tools { display: flex; align-items: center; gap: 24px; font-size: 11px; }
@@ -121,7 +122,13 @@ input[type="text"], input[type="password"], input[type="email"], input[type="url
 input[type="checkbox"] { accent-color: #e97627; }
 input[type="text"]:focus, input[type="password"]:focus, textarea:focus, select:focus { border-color: #d59a70; }
 .aligned .vTextField { max-width: 100%; width: min(520px, 100%); }
+.aligned .form-row > div, .aligned .flex-container { min-width: 0; max-width: 100%; }
+.aligned .related-widget-wrapper, .selector-available, .selector-chosen { min-width: 0; }
+.aligned .form-row .readonly { overflow-wrap: anywhere; }
 .selector { max-width: 100%; }
+.related-widget-wrapper .selector { min-width: 0; flex-shrink: 1; }
+.selector select, .selector .selector-filter input { min-width: 0; }
+.selector-chosen-title label { color: var(--header-link-color); }
 .selector h2 { font-size: 11px; }
 .selector select { border-radius: 0; font-size: 11px; }
 .submit-row { background: #fff; border: 1px solid #e0e6e9; border-radius: 8px; padding: 16px 20px; }
@@ -211,6 +218,11 @@ input[type="text"]:focus, input[type="password"]:focus, textarea:focus, select:f
   .object-tools { margin-top: 0; }
   #changelist #toolbar form input[type="text"] { min-width: 0; max-width: 65%; }
   .form-row { padding: 17px; }
+  .aligned .form-row > div { width: 100%; }
+  .aligned .related-widget-wrapper { flex-wrap: wrap; gap: 10px; }
+  .aligned .related-widget-wrapper > select { min-width: 0; flex: 1 1 160px; }
+  .aligned .related-widget-wrapper .selector { flex: 1 1 100%; width: 100%; }
+  .aligned .form-row input:not([type=checkbox]), .aligned .form-row select, .aligned .form-row textarea { min-width: 0; }
   .aligned .vTextField { width: 100%; }
   #footer { padding: 20px; }
   #footer span:last-child { display: none; }
@@ -239,7 +251,7 @@ input[type="text"]:focus, input[type="password"]:focus, textarea:focus, select:f
 .maintenance-section .panel-heading form { margin: 0; }
 .maintenance-description { padding: 18px 24px; margin: 0; color: #87959e; font-size: 11px; line-height: 1.9; }
 .maintenance-table { width: 100%; overflow-x: auto; }
-.maintenance-table table { width: 100%; margin: 0; }
+.maintenance-table table { width: 100%; min-width: 650px; margin: 0; }
 .maintenance-table th { font-size: 10px; padding: 13px 18px; }
 .maintenance-table td { padding: 16px 18px; font-size: 11px; }
 .maintenance-table td > strong { font-size: 11px; font-weight: 550; }
@@ -299,4 +311,13 @@ input[type="text"]:focus, input[type="password"]:focus, textarea:focus, select:f
   .journal-footer { display: block; }
   .journal-filters { padding: 20px 19px; }
   .maintenance-description { padding: 17px 19px; }
+  .admin-brand { letter-spacing: .2px; }
+  .admin-panel, .dashboard-heading, .dashboard-maintenance a { min-width: 0; }
+  .dashboard-heading h1, #content > h1, .confirmation-summary { overflow-wrap: anywhere; }
+  .journal-filters > div { min-width: 0; }
+  .maintenance-pagination { flex-wrap: wrap; gap: 12px; }
+  .maintenance-table td, .maintenance-table td > strong { font-size: 12px; }
+  input[type=text], input[type=password], input[type=email], input[type=url], input[type=number], input[type=date], input[type=time], textarea, select { font-size: 16px; }
+  .selector select, .selector-filter input { font-size: 16px; }
+  .password-field input { width: 100%; min-width: 0; }
 }

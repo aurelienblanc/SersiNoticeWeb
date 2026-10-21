@@ -234,7 +234,7 @@ def validate_archive(path, progress=lambda percent, message: None):
                 raise BackupError('Le manifeste de sauvegarde est absent ou invalide.')
             manifest = json.loads(archive.read('manifest.json'))
             if manifest.get('format') != 'sersi-notice-backup' or manifest.get('version') != 1:
-                raise BackupError('Ce fichier n’est pas une sauvegarde SERSI Notice compatible.')
+                raise BackupError('Ce fichier n’est pas une sauvegarde SERSI Notices compatible.')
             entries = manifest.get('entries')
             if not isinstance(entries, dict) or set(entries) | {'manifest.json'} != set(names) or not METADATA.issubset(entries):
                 raise BackupError('Le contenu ne correspond pas au manifeste de sauvegarde.')

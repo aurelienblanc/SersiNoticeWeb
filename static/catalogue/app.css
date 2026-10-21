@@ -4,3 +4,37 @@
 @media(max-width:960px){.sidebar{width:185px}.app-shell{margin-left:185px}.brand{letter-spacing:1px;font-size:15px}.brand-subtitle{font-size:6px}.sidebar-note{margin-left:7px;margin-right:7px}.nav-item{font-size:10px;gap:7px}.workspace{grid-template-columns:1fr}.summary-column{position:static}.help-card{max-width:500px}.type-grid{grid-template-columns:1fr 1fr}.project-panel{padding:24px}.project-panel>label{max-width:100%}.stats>div{padding:0 14px}.stat-label{font-size:10px}.stat-caption{font-size:8px}.heading-icon{display:none}.product-list{max-height:500px}.topbar{height:60px}.internal-badge{display:none}.footer{padding:18px 24px}}
 @media(max-width:640px){.sidebar{position:static;width:auto;padding:14px 20px;flex-direction:row;align-items:center;justify-content:space-between}.brand-image{width:42px;height:42px}.brand{font-size:16px}.brand-subtitle{font-size:6px}.nav-label,.sidebar-note,.sidebar nav,.network,.company{display:none}.sidebar-bottom{margin:0;padding:0}.sidebar-bottom .nav-item{font-size:10px}.app-shell{margin-left:0}.topbar{height:48px;padding:0 20px;font-size:10px}.main{padding:26px 18px 32px}.page-heading{margin-bottom:22px}h1{font-size:27px;letter-spacing:-.7px}.page-heading p{font-size:11px;line-height:1.8}.eyebrow{font-size:8px}.stats{grid-template-columns:1fr 1fr;gap:19px 0;padding:18px 0}.stats>div{padding:0 18px}.stats>div:nth-child(2){border:0}.stat-caption{font-size:9px}.stat-label{font-size:11px}.stats strong{font-size:27px}.config-panel{padding:20px 17px}.field-grid,.type-grid{grid-template-columns:1fr}.document-types{margin-top:18px}.section-heading{gap:10px}.section-heading h2{font-size:16px}.section-heading p{font-size:10px}.products-panel>.section-heading{padding:20px 17px 0}.count-pill{font-size:8px;padding:4px}.selection-toolbar{align-items:flex-start;gap:8px;padding:12px 17px}.selection-toolbar .check-label{font-size:9px}.selection-toolbar .text-button{font-size:9px;white-space:nowrap}.product-row{padding:14px 17px;gap:11px}.product-row .row-check{display:none}.product-name>strong{font-size:11px}.product-name>span{flex-wrap:wrap;gap:5px 10px}.footer{padding:18px;font-size:8px}.footer>span:last-child{display:none}.project-panel{padding:22px}.file-row{padding:15px 17px}.preview-workspace .panel>.section-heading{padding:20px 17px 0}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* Keep the full site name within the sidebar and narrow mobile header. */
+.brand { gap: 10px; font-size: 16px; letter-spacing: .1px; }
+.brand-name { min-width: 0; }
+.brand-image { width: 54px; height: 54px; }
+.brand-subtitle { font-size: 7px; letter-spacing: .7px; }
+.field-grid, .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 641px) { .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.type-option > span, .section-heading > div, .summary-column { min-width: 0; }
+.type-option strong, .selected-products strong, .selected-products span, .project-panel h2, .file-row strong, .alert li { overflow-wrap: anywhere; }
+@media (min-width: 641px) and (max-width: 960px) {
+  .brand { font-size: 14px; gap: 8px; }
+  .brand-image { width: 48px; height: 48px; }
+  .brand-subtitle { font-size: 6px; letter-spacing: .2px; }
+}
+@media (max-width: 640px) {
+  .sidebar { gap: 12px; padding: 14px 16px; }
+  .brand { font-size: 15px; gap: 9px; }
+  .brand-image { width: 42px; height: 42px; }
+  .brand-subtitle { font-size: 6px; letter-spacing: .4px; }
+  .sidebar-bottom .nav-item { padding: 10px 0; }
+  .field-grid { grid-template-columns: minmax(0, 1fr); }
+  input:not([type=checkbox]), select, .field-grid select, .search-field input, .category-filter select, .project-panel input:not([type=checkbox]) { font-size: 16px; }
+  .type-option strong, .product-name > strong, .button { font-size: 13px; }
+  .type-option small, .product-name code, .product-brand { font-size: 11px; }
+  .section-heading { flex-wrap: wrap; }
+  .section-heading > div { flex: 1; }
+  .count-pill { margin-left: 41px; }
+  .selection-toolbar { flex-wrap: wrap; }
+  .selection-toolbar .check-label, .selection-toolbar .text-button { font-size: 11px; }
+  .product-group h3, .inactive-control { padding-left: 17px; padding-right: 17px; }
+  .file-symbol, .file-download { flex-shrink: 0; }
+  .file-row strong { font-size: 13px; }
+}

@@ -4,25 +4,25 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="SERSI Notice — Catalogue et dossiers documentaires du Groupe SERSI.">
-  <title>{% block title %}SERSI Notice · Dossiers documentaires{% endblock %}</title>
+  <meta name="description" content="SERSI Notices — Catalogue et dossiers documentaires du Groupe SERSI.">
+  <title>{% block title %}SERSI Notices · Dossiers documentaires{% endblock %}</title>
   <link rel="icon" href="{% static 'catalogue/sersi-logo.ico' %}">
-  <link rel="stylesheet" href="{% static 'catalogue/app.css' %}">
+  <link rel="stylesheet" href="{% static 'catalogue/app.css' %}?v=20261021">
   <script src="{% static 'catalogue/app.js' %}" defer></script>
 </head>
 <body>
 <a class="skip" href="#contenu">Aller au contenu</a>
 <aside class="sidebar">
-  <a class="brand" href="{% url 'index' %}" aria-label="SERSI Notice, accueil"><span class="brand-image"><img src="{% static 'catalogue/sersi-logo.png' %}" alt="Groupe SERSI"></span><span>NOTICE<span class="brand-subtitle">ESPACE DOCUMENTAIRE</span></span></a>
+  <a class="brand" href="{% url 'index' %}" aria-label="SERSI Notices, accueil"><span class="brand-image"><img src="{% static 'catalogue/sersi-logo.png' %}" alt="Groupe SERSI"></span><span class="brand-name">SERSI Notices<span class="brand-subtitle">ESPACE DOCUMENTAIRE</span></span></a>
   <div class="nav-label">VOTRE ESPACE</div>
   <nav aria-label="Navigation principale"><a class="nav-item current" href="{% url 'index' %}"><span aria-hidden="true">▤</span> Dossier documentaire <span class="nav-arrow" aria-hidden="true">›</span></a></nav>
   <div class="sidebar-note"><span class="note-mark" aria-hidden="true">↗</span><strong>La bonne documentation.<br>Au bon endroit.</strong><p>Retrouvez les documents de vos produits et composez votre dossier projet.</p></div>
   <div class="sidebar-bottom"><a class="nav-item" href="{% url 'admin:index' %}"><span aria-hidden="true">⚙</span> Administration</a><div class="network"><i aria-hidden="true"></i> Réseau interne · VPN</div><span class="company">GROUPE SERSI</span></div>
 </aside>
 <div class="app-shell">
-  <header class="topbar"><div><span class="breadcrumb">Documentation</span><span class="crumb-sep">/</span><strong>Créer un dossier</strong></div><span class="internal-badge">ESPACE COLLABORATEURS</span></header>
+  <header class="topbar"><div><span class="breadcrumb">Documentation</span><span class="crumb-sep">/</span><strong>{% block page_label %}Créer un dossier{% endblock %}</strong></div><span class="internal-badge">ESPACE COLLABORATEURS</span></header>
   <main id="contenu" class="main">{% block content %}{% endblock %}</main>
-  <footer class="footer"><span>Groupe SERSI · Notice</span><span>Votre documentation produit, centralisée.</span></footer>
+  <footer class="footer"><span>SERSI Notices · Groupe SERSI</span><span>Votre documentation produit, centralisée.</span></footer>
 </div>
 </body>
 </html>

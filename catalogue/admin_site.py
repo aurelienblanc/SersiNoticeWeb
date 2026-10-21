@@ -24,8 +24,8 @@ from .journal import record_event
 
 
 class SharedPasswordAdminSite(AdminSite):
-    site_header = 'SERSI Notice'
-    site_title = 'Administration · SERSI Notice'
+    site_header = 'SERSI Notices'
+    site_title = 'Administration · SERSI Notices'
     index_title = 'Votre bibliothèque, à jour.'
     index_template = 'admin/sersi_index.html'
 
