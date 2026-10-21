@@ -8,8 +8,8 @@ Ce dépôt contient uniquement la version web. La version bureau est maintenue s
 
 - Catalogue commun, recherche par nom/référence, filtres par système, marque et catégorie. Les marques génériques restent proposées avec la marque choisie.
 - Sélection multiple, produits inactifs sur demande, nom de projet et client facultatifs.
-- Prévisualisation des fichiers, téléchargement individuel et archive ZIP respectant la hiérarchie des dossiers cibles. Les noms identiques sont conservés avec un suffixe.
-- Documents expirés exclus par défaut ; inclusion possible sur demande explicite. Documents indisponibles signalés ; l’export partiel exige une confirmation. Un `LISEZ-MOI.txt` liste la sélection et les exclusions.
+- Prévisualisation des fichiers, téléchargement individuel et archive ZIP avec les dossiers cibles directement à la racine. Le nom du projet sert au nom de l’archive. Les noms identiques sont conservés avec un suffixe.
+- Documents expirés exclus par défaut ; inclusion possible sur demande explicite. Les avertissements restent affichés dans le récapitulatif ; l’export partiel exige une confirmation. L’archive contient uniquement les documents sélectionnés.
 - Administration des systèmes, marques, catégories, produits, documents, types et dossiers. Dépôt des fichiers par l’administrateur. Historique des modifications via le journal Django, historique des générations via la rubrique Exports. Aucun nom de salarié n’est demandé ou enregistré par le parcours public.
 - Import en lecture seule du catalogue SQLite existant, copie optionnelle des fichiers et rapport CSV des documents à rattacher. L’ancien mot de passe de configuration n’est pas importé.
 

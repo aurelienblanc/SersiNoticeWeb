@@ -65,15 +65,17 @@ class ExportTests(TestCase):
         self.assertEqual(self.client.get('/health/').status_code, 200)
         self.assertEqual(self.client.get('/admin/').status_code, 302)
 
-    def test_archive_has_hierarchy_deduplicated_documents_and_manifest(self):
+    def test_archive_contains_only_documents_at_target_paths(self):
         other = Produit.objects.create(reference='REF-02', nom='Second', marque=self.brand, categorie=self.category)
         other.documents.add(self.doc)
         plan = build_plan(Produit.objects.all(), TypeExport.objects.all())
         self.assertEqual(len(plan.fichiers), 1)
-        archive, _ = create_archive(plan, self.selection(), Produit.objects.all())
+        archive, filename = create_archive(plan, self.selection())
+        self.assertEqual(filename, 'Chantier.zip')
         self.addCleanup(archive.close)
         with zipfile.ZipFile(archive) as contents:
-            self.assertEqual(set(contents.namelist()), {'Chantier/Notices/ECS/notice.pdf', 'Chantier/LISEZ-MOI.txt'})
+            self.assertEqual(contents.namelist(), ['Notices/ECS/notice.pdf'])
+            self.assertEqual(contents.read('Notices/ECS/notice.pdf'), b'%PDF-1.4\nDocument de test')
             self.assertEqual(contents.testzip(), None)
 
     def test_same_filename_is_not_overwritten(self):
@@ -98,13 +100,14 @@ class ExportTests(TestCase):
         self.new_document('Document absent')
         preview = self.client.post('/preparer/', self.data)
         self.assertEqual(preview.status_code, 200)
+        self.assertContains(preview, 'Document absent')
         token = preview.context['token']
         self.assertEqual(self.client.post('/exporter/', {'selection': token}).status_code, 409)
         response = self.client.post('/exporter/', {'selection': token, 'accepter_incomplet': 'on'})
         self.assertEqual(response.status_code, 200)
         contents = b''.join(response.streaming_content)
         with zipfile.ZipFile(io.BytesIO(contents)) as archive:
-            self.assertIn('Document absent', archive.read('Chantier/LISEZ-MOI.txt').decode())
+            self.assertEqual(archive.namelist(), ['Notices/ECS/notice.pdf'])
         self.assertTrue(ExportRecord.objects.get().incomplet)
 
     def test_file_removed_after_preview_is_detected_again(self):

@@ -73,7 +73,7 @@ def download_export(request):
             raise ValidationError('Aucun fichier disponible pour cette sélection.')
         if plan.indisponibles and request.POST.get('accepter_incomplet') != 'on':
             raise ValidationError('Certains documents sont indisponibles. Confirmez l’export incomplet depuis le récapitulatif.')
-        archive, filename = create_archive(plan, selection, products)
+        archive, filename = create_archive(plan, selection)
     except (ValidationError, OSError) as error:
         message = ' '.join(error.messages) if isinstance(error, ValidationError) else 'Un fichier ne peut plus être lu. Préparez à nouveau votre dossier.'
         return render(request, 'catalogue/error.html', {'message': message}, status=409)
