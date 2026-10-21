@@ -30,5 +30,3 @@ def export_created(sender, instance, created, raw=False, **kwargs):
 def connect_signals():
     post_save.connect(catalogue_changed, sender=LogEntry, dispatch_uid='sersi-catalogue-journal')
     post_save.connect(export_created, sender=ExportRecord, dispatch_uid='sersi-export-journal')
-
-
