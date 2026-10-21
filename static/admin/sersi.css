@@ -119,6 +119,9 @@ fieldset.module { background: #fff; border: 1px solid #e0e6e9; border-radius: 9p
 .form-row { padding: 17px 22px; border-color: #edf0f2; }
 .form-row label { color: #657983; font-size: 12px; }
 input[type="text"], input[type="password"], input[type="email"], input[type="url"], input[type="number"], textarea, select { border-radius: 5px; border-color: #dce4e8; padding: 9px 11px; background: #fff; color: #34434e; font-family: inherit; font-size: 12px; }
+/* Django's fixed control heights assume content-box; this theme uses border-box. */
+input[type="text"], input[type="password"], input[type="email"], input[type="url"], input[type="number"], input[type="date"], input[type="time"], select:not([multiple]):not([size]), select[size="1"] { height: auto; min-height: 42px; line-height: 1.4; }
+input[type="submit"], input[type="button"], button.button { height: auto; min-height: 42px; line-height: 1.4; }
 input[type="checkbox"] { accent-color: #e97627; }
 input[type="text"]:focus, input[type="password"]:focus, textarea:focus, select:focus { border-color: #d59a70; }
 .aligned .vTextField { max-width: 100%; width: min(520px, 100%); }
@@ -132,7 +135,8 @@ input[type="text"]:focus, input[type="password"]:focus, textarea:focus, select:f
 .selector h2 { font-size: 11px; }
 .selector select { border-radius: 0; font-size: 11px; }
 .submit-row { background: #fff; border: 1px solid #e0e6e9; border-radius: 8px; padding: 16px 20px; }
-.submit-row input { padding: 11px 16px; border-radius: 5px; font-size: 11px; }
+.submit-row input { height: auto; min-height: 42px; min-width: 0; max-width: 100%; padding: 11px 16px; border-radius: 5px; font-size: 12px; line-height: 1.4; }
+.submit-row a.deletelink, .submit-row a.closelink { display: inline-flex; align-items: center; justify-content: center; height: auto; min-height: 42px; padding: 11px 16px; line-height: 1.4; }
 .file-state { display: inline-block; font-size: 10px; padding: 4px 8px; border-radius: 5px; white-space: nowrap; font-weight: 500; }
 .file-state.available { background: #edf5f0; color: #527d66; }
 .file-state.expired { background: #fff4e4; color: #a47a35; }
@@ -234,6 +238,9 @@ input[type="text"]:focus, input[type="password"]:focus, textarea:focus, select:f
   .login-form-panel h1 { font-size: 27px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+@media (max-width: 480px) {
+  .submit-row input { padding-left: 8px; padding-right: 8px; font-size: 11px; }
+}
 
 /* Maintenance */
 .dashboard-maintenance { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 24px; }
