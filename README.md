@@ -1,6 +1,6 @@
 # SERSI Notice — version web intranet
 
-Première version fonctionnelle pour les collaborateurs du Groupe SERSI, accessible sans compte sur le réseau interne ou le VPN. L’administration exige un compte distinct. Aucun appel à un service cloud ni aucune police, bibliothèque ou ressource distante n’est nécessaire aux utilisateurs.
+Première version fonctionnelle pour les collaborateurs du Groupe SERSI, accessible sans compte sur le réseau interne ou le VPN. L’administration est protégée par un mot de passe commun, sans identifiant ni gestion d’utilisateurs ou de groupes. Aucun appel à un service cloud ni aucune police, bibliothèque ou ressource distante n’est nécessaire aux utilisateurs.
 
 Ce dépôt contient uniquement la version web. La version bureau est maintenue séparément dans [SersiNoticeApp](https://github.com/aurelienblanc/SersiNoticeApp). Les deux applications disposent de leur propre base ; le transfert initial se fait par import en lecture seule de la base bureau.
 
@@ -10,14 +10,14 @@ Ce dépôt contient uniquement la version web. La version bureau est maintenue s
 - Sélection multiple, produits inactifs sur demande, nom de projet et client facultatifs.
 - Prévisualisation des fichiers, téléchargement individuel et archive ZIP avec les dossiers cibles directement à la racine. Le nom du projet sert au nom de l’archive. Les noms identiques sont conservés avec un suffixe.
 - Documents expirés exclus par défaut ; inclusion possible sur demande explicite. Les avertissements restent affichés dans le récapitulatif ; l’export partiel exige une confirmation. L’archive contient uniquement les documents sélectionnés.
-- Administration des systèmes, marques, catégories, produits, documents, types et dossiers. Dépôt des fichiers par l’administrateur. Historique des modifications via le journal Django, historique des générations via la rubrique Exports. Aucun nom de salarié n’est demandé ou enregistré par le parcours public.
+- Administration aux couleurs SERSI : tableau de bord, navigation par rubrique, formulaires organisés et états des fichiers. Gestion des systèmes, marques, catégories, produits, documents, types et dossiers. Dépôt des fichiers, journal des modifications et historique des exports. Aucun nom de salarié n’est demandé.
 - Import en lecture seule du catalogue SQLite existant, copie optionnelle des fichiers et rapport CSV des documents à rattacher. L’ancien mot de passe de configuration n’est pas importé.
 
 Le navigateur télécharge une archive : l’écriture directe d’un dossier sur le poste utilisateur est remplacée par l’extraction du ZIP. Les fenêtres Qt de restauration, de logs et de recherche de chemins sont remplacées par l’administration, les commandes de rattachement et les sauvegardes serveur décrites ci-dessous.
 
 ## Architecture retenue
 
-Python 3.12 + Django 5.2 LTS, interface HTML/CSS/JavaScript en français, PostgreSQL en déploiement et SQLite pour les essais locaux. Django fournit l’administration, les comptes, la validation et la protection CSRF. Gunicorn exécute l’application derrière Nginx. Docker Compose assure le lancement sur une machine disposant d’un moteur de conteneurs Linux.
+Python 3.12 + Django 5.2 LTS, interface HTML/CSS/JavaScript en français, PostgreSQL en déploiement et SQLite pour les essais locaux. Django fournit l’administration, les sessions, la validation et la protection CSRF. Gunicorn exécute l’application derrière Nginx. Docker Compose assure le lancement sur une machine disposant d’un moteur de conteneurs Linux.
 
 ```text
 Collaborateurs (LAN / VPN)
@@ -43,11 +43,15 @@ python -m venv .venv
 .\.venv\Scripts\python.exe manage.py migrate
 .\.venv\Scripts\python.exe manage.py import_legacy ..\SersiNoticeApp\data\sersi_notice.db --dry-run
 .\.venv\Scripts\python.exe manage.py import_legacy ..\SersiNoticeApp\data\sersi_notice.db
-.\.venv\Scripts\python.exe manage.py createsuperuser
+.\.venv\Scripts\python.exe manage.py set_admin_password
 .\.venv\Scripts\python.exe manage.py runserver 127.0.0.1:8766
 ```
 
-Ouvrir `http://127.0.0.1:8766/` et `/admin/` pour la gestion. Le serveur de développement est réservé aux essais sur ce poste. Le mode local génère une clé de développement dans `runtime/` ; elle n’est pas utilisée en déploiement. Aucun compte administrateur ni mot de passe par défaut n’est créé.
+Ouvrir `http://127.0.0.1:8766/` et `/admin/` pour la gestion. La commande demande un mot de passe commun d’au moins 12 caractères et sa confirmation. Aucun mot de passe par défaut n’existe ; l’administration reste inaccessible tant qu’il n’a pas été défini. Le serveur de développement est réservé aux essais sur ce poste. Le mode local génère une clé de développement dans `runtime/` ; elle n’est pas utilisée en déploiement.
+
+Le mot de passe commun est stocké sous forme d’empreinte Django dans la base. Le lien « Mot de passe commun » permet de le changer après connexion ; la même commande permet de le réinitialiser sur le serveur. Un changement invalide les autres sessions. La session expire après huit heures ou à la fermeture du navigateur. Après cinq tentatives incorrectes depuis une même adresse réseau, la connexion est bloquée cinq minutes ; la limite est partagée entre les processus du serveur. Derrière le proxy fourni, cette adresse est celle du proxy : le blocage concerne donc l’ensemble des administrateurs pendant cette durée.
+
+Les anciens comptes Django ne permettent plus d’ouvrir l’administration. Un enregistrement technique sans mot de passe utilisable sert uniquement à conserver le journal des modifications Django ; aucune page de gestion des comptes ou des groupes n’est exposée. Ce journal conserve les dates et les changements, sans attribuer les actions à un salarié.
 
 Les données locales, documents et rapports restent dans `runtime/` (ignoré par Git). Pour exécuter les tests :
 
@@ -66,11 +70,11 @@ Un serveur ou une VM avec Docker et le plugin Compose peut lancer les conteneurs
 2. Générer deux secrets distincts, par exemple deux fois `python -c "import secrets; print(secrets.token_urlsafe(64))"`, et les renseigner dans `SERSI_SECRET_KEY` et `POSTGRES_PASSWORD`.
 3. Pour les premiers essais, laisser l’adresse d’écoute sur `127.0.0.1`. Pour l’accès des collaborateurs, renseigner **l’IP privée du serveur** dans `SERSI_BIND_ADDRESS`, cette IP ou son nom DNS dans `SERSI_ALLOWED_HOSTS`, et les URL complètes avec port dans `SERSI_TRUSTED_ORIGINS`.
 4. Autoriser le port choisi uniquement depuis les sous-réseaux de l’entreprise et du VPN dans le pare-feu. Ne pas configurer de redirection Internet vers ce service.
-5. Lancer puis créer le compte administrateur :
+5. Lancer puis définir le mot de passe commun de l’administration :
 
 ```sh
 docker compose up -d --build
-docker compose exec web python manage.py createsuperuser
+docker compose exec web python manage.py set_admin_password
 docker compose ps
 ```
 
@@ -137,7 +141,7 @@ Un fichier déposé depuis l’administration est limité à 50 Mo. Un export es
 
 Les anciens fichiers restent conservés dans le volume après remplacement ou suppression d’un document, afin d’éviter une suppression physique accidentelle. Leur purge éventuelle doit être précédée d’une sauvegarde. L’historique des exports conserve le nom du projet et les compteurs ; la rétention reste à définir. Sans connexion des collaborateurs, aucun suivi nominatif des exports n’est possible.
 
-Les 20 tests couvrent le catalogue public, la protection de l’administration et des formulaires, les exports ZIP, les expirations, les fichiers manquants, les collisions de noms, les chemins, les plafonds et la migration du format SQLite de la version bureau, à partir de données de test autonomes. Ils ont réussi sous SQLite et PostgreSQL dans GitHub Actions. La construction et le démarrage Docker Compose ont également été vérifiés, avec une réponse HTTP du catalogue et du contrôle de santé. Docker n’est pas installé sur le poste de préparation ; le serveur définitif et ses sauvegardes restent à valider dans leur environnement réseau.
+Les 30 tests couvrent le catalogue public, les exports ZIP, les expirations, les fichiers manquants, les collisions de noms, les chemins, les plafonds et la migration du format SQLite de la version bureau. Ils vérifient aussi le mot de passe commun, la protection CSRF, la limitation des tentatives, le renouvellement et la révocation des sessions, l’absence de gestion des comptes et le journal des modifications. La CI exécute ces tests sous SQLite et PostgreSQL, puis construit et démarre Docker Compose et vérifie les réponses HTTP du catalogue et du contrôle de santé. Docker n’est pas installé sur le poste de préparation ; le serveur définitif et ses sauvegardes restent à valider dans leur environnement réseau.
 
 Références : [Django 5.2 LTS](https://docs.djangoproject.com/fr/5.2/releases/5.2/), [déploiement Django](https://docs.djangoproject.com/fr/5.2/howto/deployment/checklist/), [Gunicorn](https://gunicorn.org/).
 

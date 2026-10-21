@@ -166,3 +166,16 @@ class ExportRecord(models.Model):
     class Meta:
         ordering = ['-created_at']
         verbose_name = 'export'
+
+
+class AdministrationAccess(models.Model):
+    """One shared credential, separate from Django's account passwords."""
+    password_hash = models.CharField(max_length=255)
+
+
+class AdministrationAttempt(models.Model):
+    """A short-lived login limit shared by all server workers."""
+    key = models.CharField(max_length=64, primary_key=True)
+    failures = models.PositiveIntegerField(default=0)
+    started_at = models.DateTimeField()
+    blocked_until = models.DateTimeField(null=True)
