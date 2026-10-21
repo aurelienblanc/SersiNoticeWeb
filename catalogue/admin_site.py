@@ -20,6 +20,7 @@ from .admin_access import (
     access_token, audit_principal, verify_password,
 )
 from .models import AdministrationAccess, Document, Marque, Produit
+from .journal import record_event
 
 
 class SharedPasswordAdminSite(AdminSite):
@@ -27,6 +28,21 @@ class SharedPasswordAdminSite(AdminSite):
     site_title = 'Administration · SERSI Notice'
     index_title = 'Votre bibliothèque, à jour.'
     index_template = 'admin/sersi_index.html'
+
+    def get_urls(self):
+        from django.urls import path
+        from . import maintenance_views as views
+        definitions = [
+            ('', views.overview, 'maintenance'), ('settings/', views.save_settings, 'maintenance_settings'),
+            ('journal/', views.journal, 'maintenance_journal'), ('journal/export/', views.export_journal, 'maintenance_journal_export'),
+            ('journal/purge/', views.purge, 'maintenance_journal_purge'), ('status/', views.status, 'maintenance_status'),
+            ('backups/create/', views.create, 'maintenance_backup_create'), ('backups/upload/', views.upload, 'maintenance_backup_upload'),
+            ('backups/<uuid:pk>/download/', views.download, 'maintenance_backup_download'),
+            ('backups/<uuid:pk>/verify/', views.verify, 'maintenance_backup_verify'),
+            ('backups/<uuid:pk>/restore/', views.restore, 'maintenance_backup_restore'),
+            ('backups/<uuid:pk>/delete/', views.remove, 'maintenance_backup_delete'),
+        ]
+        return [path('maintenance/' + route, self.admin_view(view), name=name) for route, view, name in definitions] + super().get_urls()
 
     def has_permission(self, request):
         if hasattr(request, '_sersi_admin_permission'):
@@ -75,7 +91,9 @@ class SharedPasswordAdminSite(AdminSite):
                     request.session.flush()
                     request.session[SESSION_KEY] = access_token(access)
                     rotate_token(request)
+                    record_event('security', 'admin.login', 'Ouverture de l’administration.')
                     return HttpResponseRedirect(target)
+                record_event('security', 'admin.login_failed', 'Connexion à l’administration refusée.', level='WARNING', details={'blocage_temporaire': blocked})
                 form.add_error('password', 'Trop de tentatives. Réessayez dans cinq minutes.' if blocked else 'Le mot de passe est incorrect.')
                 status = 429 if blocked else 200
         request.current_app = self.name
@@ -87,6 +105,7 @@ class SharedPasswordAdminSite(AdminSite):
 
     @method_decorator(require_POST)
     def logout(self, request, extra_context=None):
+        record_event('security', 'admin.logout', 'Fermeture de la session d’administration.')
         request.session.flush()
         return HttpResponseRedirect(reverse('admin:login'))
 
@@ -98,6 +117,7 @@ class SharedPasswordAdminSite(AdminSite):
         if request.method == 'POST' and form.is_valid():
             access.password_hash = make_password(form.cleaned_data['new_password'])
             access.save(update_fields=['password_hash'])
+            record_event('security', 'admin.password_changed', 'Modification du mot de passe commun.')
             request.session.cycle_key()
             request.session[SESSION_KEY] = access_token(access)
             rotate_token(request)

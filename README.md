@@ -114,34 +114,51 @@ docker compose exec web python manage.py attach_legacy_files /legacy-documents \
 
 Retirer `--dry-run` pour rattacher les fichiers. Les chemins ne sont acceptés qu’à l’intérieur de `--documents-root`. À défaut d’une correspondance de chemin, un nom de fichier **unique** peut être retrouvé dans ce répertoire. Deux fichiers portant le même nom nécessitent une correspondance exacte ; aucun choix arbitraire n’est effectué. Les documents sont copiés dans le volume de l’application : les fichiers originaux ne sont pas modifiés. SharePoint est conservé comme métadonnée, sans téléchargement automatique ni utilisation des identifiants d’un salarié.
 
-## Sauvegarder et restaurer
+## Journaux, sauvegardes et restauration
 
-Sur le serveur Linux, depuis la racine du dépôt :
+Dans l’administration, les rubriques **Sauvegardes et restauration** et **Journal d’activité** regroupent la maintenance. Elles sont protégées par le même mot de passe commun ; les téléchargements et les fichiers de sauvegarde ne sont jamais exposés au catalogue public.
+
+Le journal trace les modifications du catalogue, les exports et téléchargements documentaires, les connexions réussies ou refusées, les changements du mot de passe, les sauvegardes, les restaurations et les erreurs techniques. Il propose une recherche, des filtres par date, rubrique et niveau, la pagination et un export CSV. Les mots de passe, cookies, jetons, corps des requêtes et variables locales des exceptions ne sont pas enregistrés. Les erreurs techniques conservent le type d’exception et les emplacements de la pile, sans son texte potentiellement sensible. Les journaux de la plateforme (Docker, Nginx, indisponibilité complète de la base) restent accessibles avec les outils du serveur.
+
+Une sauvegarde est un ZIP portable contenant `catalogue.json`, les documents référencés, les historiques et un manifeste SHA-256. Elle fonctionne sous SQLite et PostgreSQL sans appeler un outil externe. Elle ne contient ni mot de passe, ni session, ni fichier `.env`, ni autres sauvegardes. Les documents sans fichier déposé restent référencés comme tels ; un fichier référencé mais disparu physiquement fait échouer la sauvegarde. L’archive terminée est vérifiée avant d’être proposée au téléchargement. Les fichiers temporaires ne sont pas présentés comme des sauvegardes.
+
+Le service de maintenance exécute les opérations en arrière-plan et publie leur progression. Par défaut : sauvegarde quotidienne à **02:00, heure de Paris**, conservation des **7 dernières sauvegardes automatiques** et des **90 derniers jours de journaux**. Ces paramètres sont modifiables dans l’administration. Les sauvegardes manuelles et importées ne sont pas supprimées automatiquement ; les trois dernières copies de protection avant restauration sont conservées séparément. La première planification concerne le prochain jour ; après un arrêt, une sauvegarde quotidienne manquée est rattrapée au redémarrage du service.
+
+Docker Compose lance automatiquement le service `maintenance`. Pour les essais Windows, lancer dans un second terminal, depuis le dépôt :
+
+```powershell
+.\.venv\Scripts\python.exe manage.py maintenance_worker
+```
+
+Le PC ou le serveur doit rester allumé pour exécuter une sauvegarde planifiée. La page affiche si le service répond. Une opération interrompue est signalée en échec au prochain démarrage, sans rejouer automatiquement une restauration.
+
+Pour créer une sauvegarde depuis une commande :
+
+```sh
+docker compose exec web python manage.py backup_catalogue
+```
+
+Le script suivant crée la même sauvegarde et en copie une archive sur l’hôte, sans arrêter le catalogue :
 
 ```sh
 sh deploy/backup.sh ./backups
 ```
 
-Le script suspend brièvement le web et le proxy, exporte PostgreSQL et archive le volume documentaire, puis redémarre les services. Il faut sauvegarder **les deux fichiers du même dossier horodaté**, ainsi que le fichier `.env` conservé séparément dans un emplacement protégé. Copier les sauvegardes vers un stockage distinct du serveur et vérifier régulièrement une restauration. La planification et la rétention seront à configurer sur le serveur retenu.
+Le stockage est `runtime/backups` en local et le volume Docker dédié `archives` en déploiement. `SERSI_BACKUP_STORAGE` dans `.env` peut désigner un chemin absolu vers un dossier du serveur ou un NAS déjà monté ; ce dossier doit être accessible en écriture à l’UID 10001. Les volumes de sauvegarde et de documents restent distincts. Conserver aussi une copie hors de l’équipement et le fichier `.env` séparément.
 
-Pour restaurer sur une instance de test, après avoir sauvegardé son état courant :
+Pour restaurer : importer si nécessaire un ZIP dans la page de maintenance, attendre sa vérification, choisir **Restaurer**, saisir le mot de passe commun et `RESTAURER`. Le service recontrôle les empreintes, refuse les chemins dangereux, les liens, les modèles non autorisés, les relations invalides et les archives trop volumineuses, puis crée une sauvegarde de protection. Il prépare les fichiers sous de nouveaux noms avant de remplacer le catalogue et ses relations dans une transaction. Un échec annule les changements de base et retire uniquement ces nouvelles copies. Le mot de passe courant, les sessions, les réglages de maintenance et les archives disponibles restent conservés. Le journal courant est conservé et complété avec les événements de la sauvegarde.
 
-```sh
-docker compose stop proxy web
-docker compose exec -T db pg_restore -U sersi -d sersi --clean --if-exists < backups/HORODATAGE/database.dump
-docker compose run --rm -T --no-deps --entrypoint tar web -C /data -xzf - < backups/HORODATAGE/documents.tar.gz
-docker compose start web proxy
-```
+Le catalogue est momentanément indisponible durant une restauration ; la page de suivi reste accessible. La suppression d’une archive et le nettoyage manuel du journal demandent également le mot de passe et une confirmation explicite. Les anciennes copies physiques de fichiers documentaires restent présentes après restauration ; leur purge physique n’est pas automatique.
 
-Cette restauration remplace les données de l’instance cible. Conserver une copie antérieure pour revenir en arrière. Le passage en production nécessite encore le choix du serveur, la récupération des vrais fichiers, la configuration réseau/HTTPS et un essai de sauvegarde/restauration sur cette infrastructure.
+Les limites par défaut sont de 2 Go pour l’import, 10 Go décompressés et 20 000 entrées par sauvegarde. `SERSI_BACKUP_DIR`, `SERSI_BACKUP_UPLOAD_BYTES` et `SERSI_BACKUP_MAX_BYTES` permettent d’adapter le stockage et les tailles ; conserver les mêmes réglages dans les services web et maintenance et adapter la limite Nginx en cas de modification. Les anciennes paires `database.dump` / `documents.tar.gz` ne sont pas des ZIP compatibles avec cet écran et nécessitent leur procédure PostgreSQL d’origine.
 
 ## Limites et réglages
 
 Un fichier déposé depuis l’administration est limité à 50 Mo. Un export est limité à 2 000 fichiers et 512 Mo avant compression ; la génération utilise un fichier temporaire sur disque au-delà de 8 Mo. Les variables `SERSI_MAX_UPLOAD_BYTES`, `SERSI_EXPORT_MAX_BYTES` et `SERSI_EXPORT_MAX_FILES` peuvent être ajoutées à l’environnement du service `web`. Si la taille de dépôt change, adapter aussi `client_max_body_size` dans Nginx.
 
-Les anciens fichiers restent conservés dans le volume après remplacement ou suppression d’un document, afin d’éviter une suppression physique accidentelle. Leur purge éventuelle doit être précédée d’une sauvegarde. L’historique des exports conserve le nom du projet et les compteurs ; la rétention reste à définir. Sans connexion des collaborateurs, aucun suivi nominatif des exports n’est possible.
+Les anciens fichiers restent conservés dans le volume après remplacement ou suppression d’un document, afin d’éviter une suppression physique accidentelle. Leur purge éventuelle doit être précédée d’une sauvegarde. L’historique des exports conserve le nom du projet et les compteurs. Sans connexion des collaborateurs, aucun suivi nominatif des exports n’est possible.
 
-Les 30 tests couvrent le catalogue public, les exports ZIP, les expirations, les fichiers manquants, les collisions de noms, les chemins, les plafonds et la migration du format SQLite de la version bureau. Ils vérifient aussi le mot de passe commun, la protection CSRF, la limitation des tentatives, le renouvellement et la révocation des sessions, l’absence de gestion des comptes et le journal des modifications. La CI exécute ces tests sous SQLite et PostgreSQL, puis construit et démarre Docker Compose et vérifie les réponses HTTP du catalogue et du contrôle de santé. Docker n’est pas installé sur le poste de préparation ; le serveur définitif et ses sauvegardes restent à valider dans leur environnement réseau.
+Les 49 tests couvrent le catalogue public, les exports ZIP, les expirations, les fichiers manquants, les collisions de noms, les chemins, les plafonds et la migration du format SQLite de la version bureau. Ils vérifient aussi le mot de passe commun, la protection CSRF, la limitation des tentatives, le renouvellement et la révocation des sessions, l’absence de gestion des comptes et le journal des modifications. Les essais de maintenance couvrent les restaurations avec retour arrière en cas d’échec, les empreintes, les chemins dangereux, le service en arrière-plan, la planification, la conservation et la protection des téléchargements. La CI exécute ces tests sous SQLite et PostgreSQL, puis construit et démarre Docker Compose et vérifie les réponses HTTP du catalogue et du contrôle de santé. Docker n’est pas installé sur le poste de préparation ; le serveur définitif et ses sauvegardes restent à valider dans leur environnement réseau.
 
 Références : [Django 5.2 LTS](https://docs.djangoproject.com/fr/5.2/releases/5.2/), [déploiement Django](https://docs.djangoproject.com/fr/5.2/howto/deployment/checklist/), [Gunicorn](https://gunicorn.org/).
 

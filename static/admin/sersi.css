@@ -222,3 +222,81 @@ input[type="text"]:focus, input[type="password"]:focus, textarea:focus, select:f
   .login-form-panel h1 { font-size: 27px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* Maintenance */
+.dashboard-maintenance { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 24px; }
+.dashboard-maintenance a { background: #fff; border: 1px solid #e0e6e9; border-radius: 8px; padding: 18px 22px; }
+.dashboard-maintenance strong { display: block; font-size: 12px; font-weight: 600; color: #526875; }
+.dashboard-maintenance span { display: block; font-size: 10px; color: #99a6af; margin-top: 5px; }
+.maintenance-tabs { display: flex; gap: 7px; margin-bottom: 24px; border-bottom: 1px solid #dfe6ea; }
+.maintenance-tabs a { display: block; padding: 11px 17px; color: #7f909b; border-bottom: 2px solid transparent; font-size: 12px; }
+.maintenance-tabs a.selected { color: #c46b2c; border-color: #e97627; font-weight: 600; }
+.maintenance-summary { display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-bottom: 20px; color: #7f909b; font-size: 12px; }
+.maintenance-summary strong { color: #34434e; }
+.maintenance-section { margin-bottom: 24px; }
+.maintenance-section .panel-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px; }
+.maintenance-section .panel-heading > .eyebrow { width: 100%; margin-bottom: -10px; }
+.maintenance-section .panel-heading form { margin: 0; }
+.maintenance-description { padding: 18px 24px; margin: 0; color: #87959e; font-size: 11px; line-height: 1.9; }
+.maintenance-table { width: 100%; overflow-x: auto; }
+.maintenance-table table { width: 100%; margin: 0; }
+.maintenance-table th { font-size: 10px; padding: 13px 18px; }
+.maintenance-table td { padding: 16px 18px; font-size: 11px; }
+.maintenance-table td > strong { font-size: 11px; font-weight: 550; }
+.maintenance-table td small { display: block; font-size: 9px; color: #99a5ad; margin-top: 4px; }
+.maintenance-table .maintenance-empty, .maintenance-empty { text-align: center; padding: 32px 23px; color: #8b9aa3; font-size: 12px; }
+.backup-actions { display: flex; flex-wrap: wrap; gap: 7px 11px; max-width: 190px; min-width: 130px; }
+.backup-actions a, .backup-actions button { font-size: 10px; white-space: nowrap; }
+.backup-actions form { margin: 0; }
+.backup-actions button { border: 0; padding: 0; background: transparent; color: #466374; font-family: inherit; cursor: pointer; }
+.danger-link { color: #af6658 !important; font-size: 10px; }
+.maintenance-pagination { display: flex; align-items: center; justify-content: center; gap: 20px; font-size: 11px; padding: 18px; }
+.maintenance-notice { padding: 14px 19px; background: #fff8eb; border: 1px solid #efdfc3; color: #9c7c49; font-size: 11px; line-height: 1.8; border-radius: 6px; margin-bottom: 20px; }
+#jobs-finished { margin: 18px 23px 0; }
+.job-list { padding: 0 24px; }
+.job-row { display: grid; grid-template-columns: 140px 1fr auto; gap: 20px; align-items: center; padding: 19px 0; border-bottom: 1px solid #edf0f2; }
+.job-row:last-child { border: 0; }
+.job-row strong { font-size: 11px; font-weight: 550; display: block; }
+.job-row span:not(.file-state), .job-message { font-size: 9px; color: #91a0a9; display: block; margin-top: 5px; }
+.job-progress progress { width: 100%; height: 6px; accent-color: #e97627; }
+.maintenance-settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+.maintenance-form { padding: 23px 25px; }
+.maintenance-form p { color: #91a0a9; line-height: 1.9; font-size: 10px; margin: 17px 0; }
+.maintenance-field { margin-bottom: 19px; }
+.maintenance-field label, .maintenance-form > label { display: block; color: #687e8a; font-weight: 550; font-size: 11px; margin-bottom: 7px; }
+.maintenance-field input:not([type=checkbox]) { width: 100%; min-height: 40px; }
+.checkbox-field { display: flex; gap: 10px; align-items: center; flex-direction: row-reverse; justify-content: flex-end; }
+.checkbox-field label { margin: 0; }
+.maintenance-form input[type=file] { display: block; max-width: 100%; margin-top: 12px; font-size: 11px; }
+.storage-note { padding: 0 25px 24px; }
+.storage-note strong { font-size: 11px; color: #718793; }
+.storage-note code { display: block; font-size: 9px; overflow-wrap: anywhere; color: #8b9aa3; margin-top: 7px; }
+.storage-note p { font-size: 10px; color: #9a8975; line-height: 1.9; margin-bottom: 0; }
+.journal-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 15px; padding: 21px 24px; }
+.journal-filters > div { flex: 1 1 125px; }
+.journal-filters label { display: block; font-size: 10px; color: #80939e; margin-bottom: 6px; }
+.journal-filters input, .journal-filters select { width: 100%; min-height: 40px; }
+.journal-filters > a { font-size: 10px; padding: 12px 0; }
+.event-details { margin-top: 10px; font-size: 10px; color: #9a8975; }
+.event-details summary { cursor: pointer; }
+.event-details pre { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 650px; background: #f6f8f9; border-radius: 5px; padding: 12px; font-size: 10px; line-height: 1.8; color: #718591; }
+.journal-footer { display: flex; gap: 20px; justify-content: space-between; align-items: center; }
+.journal-footer p { font-size: 10px; color: #91a0a9; line-height: 1.9; max-width: 650px; }
+.journal-footer a { flex-shrink: 0; }
+.confirmation-summary { background: #f6f8f9; border: 1px solid #e5eaee; padding: 18px; margin-bottom: 23px; border-radius: 6px; }
+.confirmation-summary strong, .confirmation-summary span { display: block; font-size: 11px; }
+.confirmation-summary span { color: #91a0a9; margin-top: 5px; }
+.confirmation-summary code { display: block; overflow-wrap: anywhere; color: #9aa7af; font-size: 9px; margin-top: 12px; }
+@media (max-width: 1100px) { .maintenance-settings-grid { grid-template-columns: 1fr; gap: 0; } }
+@media (max-width: 767px) {
+  .dashboard-maintenance { grid-template-columns: 1fr; gap: 12px; }
+  .maintenance-summary { align-items: flex-start; flex-direction: column; }
+  .maintenance-section .panel-heading { padding: 21px 19px; }
+  .maintenance-form { padding: 21px 19px; }
+  .job-list { padding: 0 19px; }
+  .job-row { grid-template-columns: 1fr auto; gap: 12px; }
+  .job-progress { grid-column: 1 / -1; grid-row: 2; }
+  .journal-footer { display: block; }
+  .journal-filters { padding: 20px 19px; }
+  .maintenance-description { padding: 17px 19px; }
+}

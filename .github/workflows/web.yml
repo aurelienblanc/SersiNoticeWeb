@@ -46,6 +46,8 @@ jobs:
           curl --fail http://127.0.0.1:8080/health/
           curl --fail http://127.0.0.1:8080/ > /tmp/sersi-index.html
           docker compose exec -T web python manage.py check
+          docker compose exec -T maintenance python manage.py maintenance_worker --check-health
+          docker compose exec -T web python manage.py backup_catalogue
       - name: Logs Docker en cas d’échec
         if: failure()
         run: docker compose logs --tail=60

@@ -10,6 +10,7 @@
   <a href="{% url 'admin:catalogue_marque_changelist' %}"><span>Marques</span><strong>{{ catalogue_stats.marques }}</strong><small>fabricants et marques génériques</small></a>
   <a class="expiry-stat" href="{% url 'admin:catalogue_document_changelist' %}?date_expiration__lt={% now 'Y-m-d' %}"><span>Documents expirés</span><strong>{{ catalogue_stats.expires }}</strong><small>à vérifier ou à remplacer</small></a>
 </div>
+<div class="dashboard-maintenance"><a href="{% url 'admin:maintenance' %}"><strong>Sauvegardes et restauration</strong><span>Protéger le catalogue et ses documents →</span></a><a href="{% url 'admin:maintenance_journal' %}"><strong>Journal d’activité</strong><span>Consulter les opérations et les erreurs →</span></a></div>
 <div class="admin-dashboard-grid"><div>
   <section class="admin-panel"><div class="panel-heading"><span class="eyebrow">AU QUOTIDIEN</span><h2>Faire évoluer le catalogue</h2></div><div class="quick-actions">
     <div><span class="action-icon" aria-hidden="true">▦</span><h3>Les produits</h3><p>Ajoutez une référence et associez-lui ses systèmes et ses documents.</p><a class="primary-button" href="{% url 'admin:catalogue_produit_add' %}">+ Ajouter un produit</a><a class="subtle-link" href="{% url 'admin:catalogue_produit_changelist' %}">Parcourir les produits →</a></div>

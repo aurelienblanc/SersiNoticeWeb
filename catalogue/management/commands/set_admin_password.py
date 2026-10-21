@@ -7,6 +7,7 @@ from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError
 
 from catalogue.models import AdministrationAccess, AdministrationAttempt
+from catalogue.journal import record_event
 
 
 class Command(BaseCommand):
@@ -28,4 +29,5 @@ class Command(BaseCommand):
             raise CommandError(' '.join(error.messages)) from error
         AdministrationAccess.objects.update_or_create(pk=1, defaults={'password_hash': make_password(password)})
         AdministrationAttempt.objects.all().delete()
+        record_event('security', 'admin.password_reset', 'Réinitialisation du mot de passe commun depuis le serveur.')
         self.stdout.write(self.style.SUCCESS('Mot de passe commun enregistré. Les sessions précédentes sont invalidées.'))

@@ -12,5 +12,8 @@
   <a {% if '/typedocument/' in request.path %}class="active"{% endif %} href="{% url 'admin:catalogue_typedocument_changelist' %}">Types de documents</a>
   <a {% if '/typeexport/' in request.path %}class="active"{% endif %} href="{% url 'admin:catalogue_typeexport_changelist' %}">Types d’export</a>
   <a {% if '/dossiercible/' in request.path %}class="active"{% endif %} href="{% url 'admin:catalogue_dossiercible_changelist' %}">Dossiers cibles</a>
+  <span class="nav-section">MAINTENANCE</span>
+  <a {% if '/maintenance/' in request.path and '/journal/' not in request.path %}class="active"{% endif %} href="{% url 'admin:maintenance' %}">Sauvegardes et restauration</a>
+  <a {% if '/maintenance/journal/' in request.path %}class="active"{% endif %} href="{% url 'admin:maintenance_journal' %}">Journal d’activité</a>
   <div class="nav-bottom"><span class="access-indicator"></span> Accès par mot de passe commun</div>
 </nav>
