@@ -10,7 +10,7 @@ La [notice détaillée de déploiement en production](docs/NOTICE_DEPLOIEMENT_PR
 
 ## Fonctionnement
 
-- Catalogue commun, recherche par nom/référence, filtres par système, marque et catégorie. Les marques génériques restent proposées avec la marque choisie.
+- Catalogue commun, recherche par nom/référence, filtres par système, marque et catégorie. La liste des marques dépend du système choisi ; les catégories dépendent du système et de la marque. Les choix devenus incompatibles sont réinitialisés. Les marques génériques restent proposées avec la marque choisie.
 - Sélection multiple, produits inactifs sur demande, nom de projet et client facultatifs.
 - Prévisualisation des fichiers, téléchargement individuel et archive ZIP avec les dossiers cibles directement à la racine. Les noms de documents identiques sont conservés avec un suffixe.
 - Documents expirés inclus par défaut ; cocher « Exclure les documents expirés » pour les retirer. Les avertissements restent affichés dans le récapitulatif ; l’export partiel exige une confirmation. L’archive contient uniquement les documents sélectionnés.

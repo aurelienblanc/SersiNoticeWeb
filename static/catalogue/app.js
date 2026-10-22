@@ -11,13 +11,27 @@
   const category = document.getElementById('category-filter');
   const inactive = document.getElementById('include-inactive');
   const selectAll = document.getElementById('select-visible');
+  const brandOptions = [...brand.options];
+  const categoryOptions = [...category.options];
   const normalize = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('fr');
-  function eligible(row) {
+  function matchesSystem(row) {
     return (!system.value || row.dataset.systems.split(' ').includes(system.value)) &&
-      (!brand.value || row.dataset.brand === brand.value || row.dataset.generic === '1') &&
       (inactive.checked || row.dataset.active === '1');
   }
+  function eligible(row) {
+    return matchesSystem(row) &&
+      (!brand.value || row.dataset.brand === brand.value || row.dataset.generic === '1');
+  }
+  function restrictOptions(select, options, available) {
+    const selected = select.value;
+    select.replaceChildren(...options.filter(option => !option.value || available.has(option.value)));
+    select.value = available.has(selected) ? selected : '';
+  }
   function update() {
+    const systemRows = rows.filter(matchesSystem);
+    restrictOptions(brand, brandOptions, new Set(systemRows.map(row => row.dataset.brand)));
+    const brandRows = systemRows.filter(eligible);
+    restrictOptions(category, categoryOptions, new Set(brandRows.map(row => row.dataset.category)));
     let visible = 0;
     const query = normalize(search.value.trim());
     rows.forEach(row => {
