@@ -11,6 +11,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from .exports import build_plan, create_archive, safe_segment
 from .forms import SelectionForm
+from .journal import record_event
 from .models import Categorie, Document, ExportRecord, Marque, Produit, Systeme, TypeExport
 
 TOKEN_SALT = 'sersi-export-selection-v1'
@@ -62,6 +63,7 @@ def download_export(request):
     try:
         selection = signing.loads(request.POST.get('selection', ''), salt=TOKEN_SALT, max_age=3600)
     except signing.BadSignature:
+        record_event('exports', 'export.rejected', 'Export refusé : sélection invalide ou expirée.', level='WARNING')
         return render(request, 'catalogue/error.html', {'message': 'La sélection a expiré ou est invalide. Préparez à nouveau votre dossier.'}, status=400)
     form = SelectionForm(selection)
     if not form.is_valid():
@@ -73,9 +75,10 @@ def download_export(request):
             raise ValidationError('Aucun fichier disponible pour cette sélection.')
         if plan.indisponibles and request.POST.get('accepter_incomplet') != 'on':
             raise ValidationError('Certains documents sont indisponibles. Confirmez l’export incomplet depuis le récapitulatif.')
-        archive, filename = create_archive(plan, selection, products)
+        archive, filename = create_archive(plan, selection)
     except (ValidationError, OSError) as error:
         message = ' '.join(error.messages) if isinstance(error, ValidationError) else 'Un fichier ne peut plus être lu. Préparez à nouveau votre dossier.'
+        record_event('exports', 'export.rejected', 'Export refusé : ' + message, level='WARNING')
         return render(request, 'catalogue/error.html', {'message': message}, status=409)
     try:
         ExportRecord.objects.create(projet=selection['projet'], nombre_produits=products.count(), nombre_fichiers=len(plan.fichiers), incomplet=bool(plan.indisponibles))
@@ -98,6 +101,7 @@ def download_document(request, pk):
     except OSError:
         raise Http404('Ce document est indisponible.')
     response['X-Content-Type-Options'] = 'nosniff'
+    record_event('exports', 'document.downloaded', f'Téléchargement : {document.nom}', details={'document': document.pk})
     return response
 
 

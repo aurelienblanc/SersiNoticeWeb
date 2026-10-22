@@ -31,6 +31,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'catalogue.maintenance_middleware.MaintenanceMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -86,6 +87,10 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
 SERSI_MAX_UPLOAD_BYTES = int(os.environ.get('SERSI_MAX_UPLOAD_BYTES', 50 * 1024 * 1024))
 SERSI_EXPORT_MAX_BYTES = int(os.environ.get('SERSI_EXPORT_MAX_BYTES', 512 * 1024 * 1024))
 SERSI_EXPORT_MAX_FILES = int(os.environ.get('SERSI_EXPORT_MAX_FILES', '2000'))
+SERSI_BACKUP_DIR = Path(os.environ.get('SERSI_BACKUP_DIR', RUNTIME_DIR / 'backups'))
+SERSI_BACKUP_UPLOAD_BYTES = int(os.environ.get('SERSI_BACKUP_UPLOAD_BYTES', 2 * 1024 ** 3))
+SERSI_BACKUP_MAX_BYTES = int(os.environ.get('SERSI_BACKUP_MAX_BYTES', 10 * 1024 ** 3))
+SERSI_BACKUP_MAX_FILES = 20000
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_AGE = 8 * 60 * 60
@@ -103,6 +108,6 @@ SECURE_REFERRER_POLICY = 'same-origin'
 X_FRAME_OPTIONS = 'DENY'
 LOGGING = {
     'version': 1, 'disable_existing_loggers': False,
-    'handlers': {'console': {'class': 'logging.StreamHandler'}},
-    'loggers': {'django': {'handlers': ['console'], 'level': 'INFO'}},
+    'handlers': {'console': {'class': 'logging.StreamHandler'}, 'journal': {'class': 'catalogue.logging_handlers.JournalErrorHandler', 'level': 'ERROR'}},
+    'loggers': {'django': {'handlers': ['console', 'journal'], 'level': 'INFO'}},
 }

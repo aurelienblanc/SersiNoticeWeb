@@ -1,0 +1,22 @@
+:root {
+  --sersi-gold: #C99B43;
+  --sersi-navy: #0F3057;
+  --sersi-burgundy: #800000;
+  --sersi-charcoal: #303030;
+  --sersi-silver: #D3D3D3;
+  --sersi-black: #000000;
+  --sersi-white: #FFFFFF;
+
+  --sersi-canvas: #F5F5F5;
+  --sersi-surface-soft: #FAFAFA;
+  --sersi-muted: #606060;
+  --sersi-gold-soft: #F9F3E7;
+  --sersi-gold-border: #E5CDA1;
+  --sersi-gold-hover: #D6B36F;
+  --sersi-gold-ink: #795D28;
+  --sersi-blue-soft: #E7EBEF;
+  --sersi-danger-soft: #F6E6E6;
+  --sersi-danger-hover: #660000;
+  --sersi-nav-active: rgb(201 155 67 / 18%);
+  --sersi-nav-line: rgb(255 255 255 / 22%);
+}

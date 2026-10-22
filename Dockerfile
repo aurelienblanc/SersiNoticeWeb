@@ -7,8 +7,8 @@ COPY . .
 RUN SERSI_SECRET_KEY=temporary-build-key-not-used-at-runtime python manage.py collectstatic --noinput \
     && groupadd --gid 10001 sersi \
     && useradd --uid 10001 --gid sersi --no-create-home sersi \
-    && mkdir -p /data/documents \
-    && chown -R sersi:sersi /app /data
+    && mkdir -p /data/documents /backups \
+    && chown -R sersi:sersi /app /data /backups
 USER sersi
 EXPOSE 8000
 CMD ["sh", "entrypoint.sh"]

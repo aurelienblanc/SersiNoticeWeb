@@ -10,6 +10,8 @@ staticfiles/
 .tmp/
 .migration-backup/
 backups/
+output/
+tmp/
 rapport-import.csv
 *.sqlite
 *.sqlite3

@@ -7,7 +7,6 @@ from pathlib import Path
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.utils import timezone
 
 from .models import Document, validate_folder_path
 
@@ -101,22 +100,9 @@ def build_plan(products, export_types, include_expired=False):
     return plan
 
 
-def create_archive(plan, selection, products):
+def create_archive(plan, selection):
     output = tempfile.SpooledTemporaryFile(max_size=8 * 1024 * 1024, mode='w+b')
-    root = safe_segment(selection['projet'] or 'Dossier documentaire')
-    lines = [
-        'SERSI Notice — Dossier documentaire',
-        f"Projet : {selection['projet'] or 'Non renseigné'}",
-        f"Client : {selection['client'] or 'Non renseigné'}",
-        f"Généré le : {timezone.localtime():%d/%m/%Y à %H:%M}",
-        '', 'Produits sélectionnés :', *[f'- {product.reference} · {product.nom}' for product in products],
-        '', f'Fichiers inclus : {len(plan.fichiers)}',
-        '', 'Documents indisponibles :', *[f'- {issue.nom} : {issue.raison}' for issue in plan.indisponibles],
-        '', 'Documents expirés exclus :', *[f'- {doc.nom}' for doc in plan.expires],
-    ]
-    included_expired = {item.document.pk: item.document for item in plan.fichiers if item.document.expire}
-    if included_expired:
-        lines += ['', 'ATTENTION — Documents expirés inclus à votre demande :', *[f'- {doc.nom}' for doc in included_expired.values()]]
+    archive_name = safe_segment(selection['projet'] or 'Dossier documentaire')
     try:
         total = 0
         with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED, compresslevel=5) as archive:
@@ -126,10 +112,9 @@ def create_archive(plan, selection, products):
                 total += Path(item.document.fichier.path).stat().st_size
                 if total > settings.SERSI_EXPORT_MAX_BYTES:
                     raise ValidationError('Le dossier dépasse la taille maximale autorisée.')
-                archive.write(item.document.fichier.path, f'{root}/{item.chemin}')
-            archive.writestr(f'{root}/LISEZ-MOI.txt', '\n'.join(lines).encode('utf-8'))
+                archive.write(item.document.fichier.path, item.chemin)
         output.seek(0)
-        return output, f'{root}.zip'
+        return output, f'{archive_name}.zip'
     except Exception:
         output.close()
         raise

@@ -17,6 +17,7 @@ services:
     networks: [backend]
   web:
     build: .
+    image: sersi-notice-web:local
     restart: unless-stopped
     environment:
       SERSI_DEBUG: '0'
@@ -26,16 +27,44 @@ services:
       SERSI_TRUSTED_ORIGINS: ${SERSI_TRUSTED_ORIGINS:-}
       SERSI_HTTPS: ${SERSI_HTTPS:-0}
       SERSI_TRUST_PROXY: '1'
+      SERSI_BACKUP_DIR: /backups
       POSTGRES_HOST: db
       POSTGRES_DB: sersi
       POSTGRES_USER: sersi
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Définir POSTGRES_PASSWORD dans .env}
     volumes:
       - documents:/data
+      - '${SERSI_BACKUP_STORAGE:-archives}:/backups'
     depends_on:
       db: {condition: service_healthy}
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen(urllib.request.Request('http://127.0.0.1:8000/health/', headers={'Host':'localhost'}), timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks: [backend]
+  maintenance:
+    image: sersi-notice-web:local
+    pull_policy: never
+    command: [python, manage.py, maintenance_worker]
+    restart: unless-stopped
+    environment:
+      SERSI_DEBUG: '0'
+      SERSI_DATA_DIR: /data
+      SERSI_SECRET_KEY: ${SERSI_SECRET_KEY:?Définir SERSI_SECRET_KEY dans .env}
+      SERSI_BACKUP_DIR: /backups
+      POSTGRES_HOST: db
+      POSTGRES_DB: sersi
+      POSTGRES_USER: sersi
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Définir POSTGRES_PASSWORD dans .env}
+    volumes:
+      - documents:/data
+      - '${SERSI_BACKUP_STORAGE:-archives}:/backups'
+    depends_on:
+      web: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, python, manage.py, maintenance_worker, --check-health]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -54,5 +83,6 @@ services:
 volumes:
   database:
   documents:
+  archives:
 networks:
   backend:

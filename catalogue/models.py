@@ -1,5 +1,6 @@
 import re
 import uuid
+from datetime import time
 from pathlib import Path, PureWindowsPath
 
 from django.conf import settings
@@ -166,3 +167,71 @@ class ExportRecord(models.Model):
     class Meta:
         ordering = ['-created_at']
         verbose_name = 'export'
+
+
+class AdministrationAccess(models.Model):
+    """One shared credential, separate from Django's account passwords."""
+    password_hash = models.CharField(max_length=255)
+
+
+class AdministrationAttempt(models.Model):
+    """A short-lived login limit shared by all server workers."""
+    key = models.CharField(max_length=64, primary_key=True)
+    failures = models.PositiveIntegerField(default=0)
+    started_at = models.DateTimeField()
+    blocked_until = models.DateTimeField(null=True)
+
+
+class ActivityEvent(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+    level = models.CharField(max_length=10, default='INFO', choices=[('INFO', 'Information'), ('WARNING', 'Attention'), ('ERROR', 'Erreur')])
+    category = models.CharField(max_length=20, db_index=True, choices=[('catalogue', 'Catalogue'), ('exports', 'Exports'), ('security', 'Accès administration'), ('backups', 'Sauvegardes'), ('system', 'Technique')])
+    event = models.CharField(max_length=80)
+    message = models.CharField(max_length=1000)
+    details = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+
+
+class MaintenanceSettings(models.Model):
+    automatic_backups = models.BooleanField(default=True)
+    backup_time = models.TimeField(default=time(2, 0))
+    automatic_retention = models.PositiveIntegerField(default=7)
+    log_retention_days = models.PositiveIntegerField(default=90)
+    last_scheduled_date = models.DateField(default=timezone.localdate)
+    last_cleanup_date = models.DateField(null=True)
+    worker_seen_at = models.DateTimeField(null=True)
+
+
+class BackupRecord(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+    origin = models.CharField(max_length=12, choices=[('manual', 'Manuelle'), ('automatic', 'Automatique'), ('safety', 'Protection avant restauration'), ('upload', 'Archive importée')])
+    filename = models.CharField(max_length=80, unique=True)
+    size = models.PositiveBigIntegerField(default=0)
+    sha256 = models.CharField(max_length=64, blank=True)
+    products = models.PositiveIntegerField(default=0)
+    documents = models.PositiveIntegerField(default=0)
+    files = models.PositiveIntegerField(default=0)
+    verified_at = models.DateTimeField(null=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+
+class MaintenanceJob(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created_at = models.DateTimeField(default=timezone.now)
+    started_at = models.DateTimeField(null=True)
+    finished_at = models.DateTimeField(null=True)
+    kind = models.CharField(max_length=10, choices=[('backup', 'Sauvegarde'), ('verify', 'Vérification'), ('restore', 'Restauration')])
+    origin = models.CharField(max_length=12, default='manual')
+    status = models.CharField(max_length=10, default='queued', choices=[('queued', 'En attente'), ('running', 'En cours'), ('done', 'Terminée'), ('failed', 'Échec')])
+    progress = models.PositiveSmallIntegerField(default=0)
+    message = models.CharField(max_length=1000, blank=True)
+    backup = models.ForeignKey(BackupRecord, on_delete=models.SET_NULL, null=True)
+
+    class Meta:
+        ordering = ['-created_at']

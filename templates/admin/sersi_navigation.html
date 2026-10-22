@@ -1,0 +1,19 @@
+<nav class="sersi-nav" aria-label="Administration">
+  <span class="nav-section">VOTRE BIBLIOTHÈQUE</span>
+  <a {% if request.path == '/admin/' %}class="active" aria-current="page"{% endif %} href="{% url 'admin:index' %}"><span aria-hidden="true">◫</span> Tableau de bord</a>
+  <a {% if '/produit/' in request.path %}class="active" aria-current="page"{% endif %} href="{% url 'admin:catalogue_produit_changelist' %}"><span aria-hidden="true">▦</span> Produits</a>
+  <a {% if '/document/' in request.path %}class="active" aria-current="page"{% endif %} href="{% url 'admin:catalogue_document_changelist' %}"><span aria-hidden="true">▤</span> Documents</a>
+  <a {% if '/exportrecord/' in request.path %}class="active" aria-current="page"{% endif %} href="{% url 'admin:catalogue_exportrecord_changelist' %}"><span aria-hidden="true">↓</span> Historique des exports</a>
+  <span class="nav-section">ORGANISATION</span>
+  <a {% if '/marque/' in request.path %}class="active"{% endif %} href="{% url 'admin:catalogue_marque_changelist' %}">Marques</a>
+  <a {% if '/categorie/' in request.path %}class="active"{% endif %} href="{% url 'admin:catalogue_categorie_changelist' %}">Catégories</a>
+  <a {% if '/systeme/' in request.path %}class="active"{% endif %} href="{% url 'admin:catalogue_systeme_changelist' %}">Systèmes</a>
+  <span class="nav-section">CLASSEMENT DES DOCUMENTS</span>
+  <a {% if '/typedocument/' in request.path %}class="active"{% endif %} href="{% url 'admin:catalogue_typedocument_changelist' %}">Types de documents</a>
+  <a {% if '/typeexport/' in request.path %}class="active"{% endif %} href="{% url 'admin:catalogue_typeexport_changelist' %}">Types d’export</a>
+  <a {% if '/dossiercible/' in request.path %}class="active"{% endif %} href="{% url 'admin:catalogue_dossiercible_changelist' %}">Dossiers cibles</a>
+  <span class="nav-section">MAINTENANCE</span>
+  <a {% if '/maintenance/' in request.path and '/journal/' not in request.path %}class="active"{% endif %} href="{% url 'admin:maintenance' %}">Sauvegardes et restauration</a>
+  <a {% if '/maintenance/journal/' in request.path %}class="active"{% endif %} href="{% url 'admin:maintenance_journal' %}">Journal d’activité</a>
+  <div class="nav-bottom"><span class="access-indicator"></span> Accès par mot de passe commun</div>
+</nav>

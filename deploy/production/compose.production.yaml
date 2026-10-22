@@ -1,0 +1,32 @@
+# Overlay only: combine with compose.yaml. Copy it outside the source checkout
+# and set COMPOSE_FILE as shown in env.production.example.
+x-sersi-logging: &sersi-logging
+  driver: local
+  options:
+    max-size: '10m'
+    max-file: '5'
+
+services:
+  db:
+    logging: *sersi-logging
+  web:
+    logging: *sersi-logging
+  maintenance:
+    logging: *sersi-logging
+  proxy:
+    logging: *sersi-logging
+    ports:
+      - '${SERSI_BIND_ADDRESS:-127.0.0.1}:${SERSI_HTTPS_PORT:-443}:443'
+    volumes:
+      - type: bind
+        source: ${SERSI_PRODUCTION_CONFIG_DIR:-/srv/sersi-notices/config}/nginx.https.conf
+        target: /etc/nginx/conf.d/default.conf
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${SERSI_PRODUCTION_CONFIG_DIR:-/srv/sersi-notices/config}/tls
+        target: /etc/nginx/tls
+        read_only: true
+        bind:
+          create_host_path: false

@@ -1,10 +1,11 @@
 #!/bin/sh
 set -eu
-destination="${1:-./backups}/$(date +%Y%m%d-%H%M%S)"
+umask 077
+destination="${1:-./backups}"
 mkdir -p "$destination"
-chmod 700 "$destination"
-docker compose stop proxy web
-trap 'docker compose start web proxy >/dev/null' EXIT
-docker compose exec -T db pg_dump -U sersi -d sersi --format=custom > "$destination/database.dump"
-docker compose run --rm -T --no-deps --entrypoint tar web -C /data -czf - . > "$destination/documents.tar.gz"
-printf 'Sauvegarde créée : %s\n' "$destination"
+temporary="$(mktemp "$destination/.sersi-backup.XXXXXX")"
+trap 'rm -f -- "$temporary"' EXIT
+docker compose exec -T web python manage.py backup_catalogue --stdout > "$temporary"
+filename="$destination/SERSI-Notice-$(date +%Y%m%d-%H%M%S)-$$.zip"
+mv -- "$temporary" "$filename"
+printf 'Sauvegarde créée : %s\n' "$filename"
