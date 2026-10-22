@@ -1,5 +1,4 @@
 import io
-import sqlite3
 import tempfile
 import zipfile
 from datetime import timedelta
@@ -10,14 +9,11 @@ from django.conf import settings
 from django.core import signing
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
-from django.core.management import call_command
-from django.core.management.base import CommandError
 from django.test import Client, TestCase, override_settings
 from django.utils import timezone
 
 from .exports import build_plan, create_archive, folder_path
 from .forms import SelectionForm
-from .management.commands.import_legacy import FileResolver
 from .models import Categorie, Document, DossierCible, ExportRecord, Marque, Produit, Systeme, TypeDocument, TypeExport
 from .views import TOKEN_SALT
 
@@ -210,7 +206,7 @@ class ExportTests(TestCase):
         other = TypeExport.objects.create(libelle='Commercial')
         self.assertFalse(build_plan(Produit.objects.all(), TypeExport.objects.filter(pk=other.pk)).fichiers)
 
-    def test_unmapped_legacy_type_is_reported_and_requires_incomplete_confirmation(self):
+    def test_unmapped_type_is_reported_and_requires_incomplete_confirmation(self):
         kind = TypeDocument.objects.create(nom='Ancien type sans groupe')
         document = self.new_document('PDF non classé', 'non-classe.pdf')
         document.type_document = kind
@@ -261,7 +257,7 @@ class ExportTests(TestCase):
         self.folder.parent = self.child
         with self.assertRaises(ValidationError):
             self.folder.full_clean()
-        self.folder.save()  # Simulate bad legacy data bypassing model validation.
+        self.folder.save()  # Simulate inconsistent data bypassing model validation.
         with self.assertRaises(ValidationError):
             folder_path(DossierCible.objects.get(pk=self.child.pk))
 
@@ -276,58 +272,3 @@ class ExportTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('attachment', response['Content-Disposition'])
         b''.join(response.streaming_content)  # The test client closes the stream and request once.
-
-
-class LegacyImportTests(TestCase):
-    def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(dir=settings.RUNTIME_DIR)
-        self.addCleanup(self.temp.cleanup)
-        self.directory = Path(self.temp.name)
-        self.source = self.directory / 'legacy.sqlite'
-        fixture = Path(__file__).with_name('testdata') / 'legacy.sql'
-        database = sqlite3.connect(self.source)
-        database.executescript(fixture.read_text(encoding='utf-8'))
-        database.close()
-        self.report = self.directory / 'report.csv'
-
-    def test_legacy_import_preserves_relations_and_source(self):
-        before = self.source.read_bytes()
-        call_command('import_legacy', str(self.source), report=self.report, stdout=io.StringIO())
-        self.assertEqual(Produit.objects.count(), 3)
-        self.assertEqual(Document.objects.count(), 3)
-        self.assertEqual(Produit.systemes.through.objects.count(), 4)
-        self.assertEqual(Produit.documents.through.objects.count(), 4)
-        self.assertEqual(Document.dossiers.through.objects.count(), 4)
-        self.assertEqual(self.source.read_bytes(), before)
-        # PostgreSQL sequences must allow new records after importing explicit IDs.
-        self.assertGreater(Marque.objects.create(nom='Nouvelle marque').pk, 9)
-        with self.assertRaises(CommandError):
-            call_command('import_legacy', str(self.source), report=self.report, stdout=io.StringIO())
-
-    def test_dry_run_does_not_keep_catalogue_data(self):
-        call_command('import_legacy', str(self.source), dry_run=True, report=self.report, stdout=io.StringIO())
-        self.assertFalse(Produit.objects.exists())
-        self.assertFalse(Document.objects.exists())
-
-    def test_import_failure_rolls_back_catalogue(self):
-        db = sqlite3.connect(self.source)
-        db.execute('UPDATE DossierCible SET parent_id=id WHERE id=(SELECT MIN(id) FROM DossierCible)')
-        db.commit()
-        db.close()
-        with self.assertRaises(CommandError):
-            call_command('import_legacy', str(self.source), report=self.report, stdout=io.StringIO())
-        self.assertFalse(Produit.objects.exists())
-        self.assertFalse(Marque.objects.exists())
-
-    def test_resolver_refuses_ambiguous_files_and_outside_paths(self):
-        root = self.directory / 'docs'
-        (root / 'a').mkdir(parents=True)
-        (root / 'b').mkdir()
-        (root / 'a' / 'notice.pdf').write_bytes(b'a')
-        (root / 'b' / 'notice.pdf').write_bytes(b'b')
-        outside = self.directory / 'secret.pdf'
-        outside.write_bytes(b'private')
-        resolver = FileResolver(root, ['Z:\\Documents=' + str(root)])
-        self.assertIsNone(resolver.resolve('X:\\notice.pdf')[0])
-        self.assertIsNone(resolver.resolve(str(outside))[0])
-        self.assertEqual(resolver.resolve('Z:\\Documents\\a\\notice.pdf')[0], (root / 'a' / 'notice.pdf').resolve())

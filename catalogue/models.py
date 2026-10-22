@@ -53,7 +53,7 @@ class TypeExport(models.Model):
 
 
 class TypeDocument(NomModel):
-    # Nullable for legacy imports/backups; new admin entries require a group.
+    # Nullable for existing web backups; admin entries require a group.
     type_export = models.ForeignKey(TypeExport, on_delete=models.PROTECT, null=True, verbose_name="type d’export")
 
     class Meta(NomModel.Meta):
@@ -109,7 +109,6 @@ class Document(models.Model):
     type_document = models.ForeignKey(TypeDocument, on_delete=models.PROTECT, verbose_name='type de document')
     fichier = models.FileField('fichier sur le serveur', upload_to=document_path, blank=True, validators=[validate_upload])
     nom_fichier = models.CharField('nom du fichier original', max_length=500, blank=True)
-    ancien_chemin = models.TextField('ancien chemin (migration)', blank=True)
     chemin_sharepoint = models.URLField('lien SharePoint', max_length=2000, blank=True)
     date_expiration = models.DateField("date d’expiration", null=True, blank=True)
     indice = models.CharField('indice', max_length=100, blank=True)

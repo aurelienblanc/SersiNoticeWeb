@@ -31,6 +31,7 @@ MODELS = {model._meta.label_lower: model for model in CATALOGUE_MODELS}
 METADATA = {'catalogue.json', 'historique.json', 'journal.json'}
 JSON_LIMIT = 64 * 1024 * 1024
 CHUNK = 1024 * 1024
+BACKUP_VERSION = 2
 
 
 class BackupError(Exception):
@@ -99,7 +100,7 @@ def create_backup(origin='manual', progress=lambda percent, message: None):
     filename = f'sersi-{identifier.hex}.zip'
     temporary = backup_directory() / f'.{identifier.hex}.partial'
     destination = backup_directory() / filename
-    manifest = {'format': 'sersi-notice-backup', 'version': 1, 'created_at': timezone.now().isoformat(),
+    manifest = {'format': 'sersi-notice-backup', 'version': BACKUP_VERSION, 'created_at': timezone.now().isoformat(),
                 'products': sum(row['model'] == 'catalogue.produit' for row in rows),
                 'documents': sum(row['model'] == 'catalogue.document' for row in rows),
                 'files': len(names), 'entries': {}}
@@ -157,6 +158,20 @@ def create_backup(origin='manual', progress=lambda percent, message: None):
         destination.unlink(missing_ok=True)
         raise
     return backup
+
+
+def _read_catalogue(archive, version):
+    """Read web snapshots, discarding only the retired field of format 1."""
+    rows = json.loads(archive.read('catalogue.json'))
+    if version == 1 and isinstance(rows, list):
+        for row in rows:
+            if not isinstance(row, dict) or row.get('model') != 'catalogue.document':
+                continue
+            fields = row.get('fields')
+            if isinstance(fields, dict) and 'ancien_chemin' in fields:
+                if not isinstance(fields.pop('ancien_chemin'), str):
+                    raise BackupError('Une valeur du catalogue sauvegardé est invalide.')
+    return rows
 
 
 def _validate_catalogue(rows, entries):
@@ -233,7 +248,8 @@ def validate_archive(path, progress=lambda percent, message: None):
             if 'manifest.json' not in names or archive.getinfo('manifest.json').file_size > JSON_LIMIT:
                 raise BackupError('Le manifeste de sauvegarde est absent ou invalide.')
             manifest = json.loads(archive.read('manifest.json'))
-            if manifest.get('format') != 'sersi-notice-backup' or manifest.get('version') != 1:
+            version = manifest.get('version')
+            if manifest.get('format') != 'sersi-notice-backup' or type(version) is not int or version not in (1, BACKUP_VERSION):
                 raise BackupError('Ce fichier n’est pas une sauvegarde SERSI Notices compatible.')
             entries = manifest.get('entries')
             if not isinstance(entries, dict) or set(entries) | {'manifest.json'} != set(names) or not METADATA.issubset(entries):
@@ -251,7 +267,7 @@ def validate_archive(path, progress=lambda percent, message: None):
                 if digest.hexdigest() != expected.get('sha256'):
                     raise BackupError('Le contrôle d’intégrité de la sauvegarde a échoué.')
                 progress(int((index + 1) * 100 / len(entries)), 'Vérification des fichiers…')
-            rows = json.loads(archive.read('catalogue.json'))
+            rows = _read_catalogue(archive, version)
             objects = _validate_catalogue(rows, entries)
             history = json.loads(archive.read('historique.json'))
             if not isinstance(history, list) or any(not isinstance(item, dict) or item.get('modele') not in {m._meta.model_name for m in CATALOGUE_MODELS}
@@ -286,7 +302,7 @@ def verify_backup(backup, progress=lambda percent, message: None):
 def restore_backup(backup, progress=lambda percent, message: None):
     path = backup_path(backup)
     progress(1, 'Vérification de la sauvegarde à restaurer…')
-    verify_backup(backup, lambda p, m: progress(1 + int(p * .14), m))
+    manifest = verify_backup(backup, lambda p, m: progress(1 + int(p * .14), m))
     progress(16, 'Création d’une sauvegarde de protection…')
     safety = create_backup('safety', lambda p, m: progress(16 + int(p * .39), m))
     copied = []
@@ -297,7 +313,7 @@ def restore_backup(backup, progress=lambda percent, message: None):
             size = sum(info.file_size for info in archive.infolist() if info.filename.startswith('documents/'))
             if shutil.disk_usage(media_root).free < size + 128 * 1024 ** 2:
                 raise BackupError('L’espace disponible est insuffisant pour préparer les documents restaurés.')
-            rows = json.loads(archive.read('catalogue.json'))
+            rows = _read_catalogue(archive, manifest['version'])
             replacements = {}
             for row in rows:
                 if row['model'] != 'catalogue.document' or not row['fields']['fichier']:

@@ -12,7 +12,6 @@ staticfiles/
 backups/
 output/
 tmp/
-rapport-import.csv
 *.sqlite
 *.sqlite3
 *.db
