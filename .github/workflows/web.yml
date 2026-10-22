@@ -48,6 +48,51 @@ jobs:
           docker compose exec -T web python manage.py check
           docker compose exec -T maintenance python manage.py maintenance_worker --check-health
           docker compose exec -T web python manage.py backup_catalogue
+      - name: Essai du profil HTTPS de la notice
+        shell: bash
+        run: |
+          set -euo pipefail
+          SN_CI_CONFIG="$(mktemp -d)"
+          mkdir "$SN_CI_CONFIG/tls"
+          cp deploy/production/nginx.https.conf "$SN_CI_CONFIG/nginx.https.conf"
+          sed -i 's/notices\.entreprise\.example/localhost/g' "$SN_CI_CONFIG/nginx.https.conf"
+          openssl req -x509 -newkey rsa:2048 -nodes -days 2 \
+            -subj '/CN=localhost' -addext 'subjectAltName=DNS:localhost' \
+            -keyout "$SN_CI_CONFIG/tls/notices.key" \
+            -out "$SN_CI_CONFIG/tls/notices.crt" >/dev/null 2>&1
+          export SERSI_PRODUCTION_CONFIG_DIR="$SN_CI_CONFIG"
+          export SERSI_BIND_ADDRESS=127.0.0.1 SERSI_PORT=8080 SERSI_HTTPS_PORT=8443
+          export SERSI_HTTPS=1 SERSI_ALLOWED_HOSTS=localhost
+          export SERSI_TRUSTED_ORIGINS=https://localhost:8443
+          export COMPOSE_FILE=compose.yaml:deploy/production/compose.production.yaml
+          docker compose config --quiet
+          docker compose up -d --wait --wait-timeout 240
+          docker compose exec -T proxy nginx -t
+          curl --fail --cacert "$SN_CI_CONFIG/tls/notices.crt" https://localhost:8443/health/
+          printf '%s\n' 'ci-deploy-only-password-2026' | \
+            docker compose exec -T web python manage.py set_admin_password --password-stdin
+          export SN_CI_CONFIG
+          python - <<'PY'
+          import http.cookiejar, os, ssl, urllib.parse, urllib.request
+          base = 'https://localhost:8443'
+          context = ssl.create_default_context(cafile=os.environ['SN_CI_CONFIG'] + '/tls/notices.crt')
+          jar = http.cookiejar.CookieJar()
+          client = urllib.request.build_opener(
+              urllib.request.HTTPSHandler(context=context), urllib.request.HTTPCookieProcessor(jar))
+          client.open(base + '/admin/login/', timeout=15).close()
+          csrf = next(cookie.value for cookie in jar if cookie.name == 'csrftoken')
+          payload = urllib.parse.urlencode({
+              'password': 'ci-deploy-only-password-2026', 'csrfmiddlewaretoken': csrf, 'next': '/admin/'
+          }).encode()
+          request = urllib.request.Request(base + '/admin/login/', data=payload, headers={
+              'Origin': base, 'Referer': base + '/admin/login/'})
+          with client.open(request, timeout=15) as response:
+              assert urllib.parse.urlparse(response.url).path == '/admin/'
+              assert b'SERSI Notices' in response.read()
+          assert any(cookie.name == 'sessionid' and cookie.secure for cookie in jar)
+          assert any(cookie.name == 'csrftoken' and cookie.secure for cookie in jar)
+          print('HTTPS, certificat, connexion CSRF et cookies securises verifies.')
+          PY
       - name: Logs Docker en cas d’échec
         if: failure()
         run: docker compose logs --tail=60

@@ -10,3 +10,5 @@ staticfiles/
 .tmp/
 .migration-backup/
 backups/
+output/
+tmp/

@@ -6,6 +6,8 @@ Ce dépôt contient uniquement la version web. La version bureau est maintenue s
 
 La palette commune au catalogue et à l’administration est définie dans `static/sersi/palette.css` : or `#C99B43`, bleu marine `#0F3057`, bordeaux `#800000`, anthracite `#303030`, gris `#D3D3D3`, noir et blanc. Les fonds et les états utilisent des déclinaisons de ces couleurs ; les boutons dorés ont un texte sombre, les actions destructives un fond bordeaux et un texte blanc.
 
+La [notice détaillée de déploiement en production](docs/NOTICE_DEPLOIEMENT_PRODUCTION.md) décrit l’installation Linux/Docker, le HTTPS, la reprise du catalogue actuel, l’exploitation et les procédures de retour arrière. Les fichiers d’exemple correspondants sont dans `deploy/production/` ; ils ne sont activés que lorsqu’ils sont explicitement utilisés avec la configuration de base.
+
 ## Fonctionnement
 
 - Catalogue commun, recherche par nom/référence, filtres par système, marque et catégorie. Les marques génériques restent proposées avec la marque choisie.
@@ -80,13 +82,13 @@ docker compose exec web python manage.py set_admin_password
 docker compose ps
 ```
 
-Exemple d’accès après configuration : `http://192.168.1.20:8080/`. La base PostgreSQL et le serveur Gunicorn n’exposent aucun port sur l’hôte ; seul Nginx le fait. Les données sont conservées dans deux volumes nommés. Ne pas utiliser `docker compose down -v`, qui supprimerait ces volumes.
+Exemple d’accès après configuration : `http://192.168.1.20:8080/`. La base PostgreSQL et le serveur Gunicorn n’exposent aucun port sur l’hôte ; seul Nginx le fait. La configuration de base utilise trois volumes nommés : base, documents et archives. Les archives peuvent être remplacées par un montage hôte via `SERSI_BACKUP_STORAGE`. Ne pas utiliser `docker compose down -v`, qui supprimerait les volumes nommés du projet.
 
 Le fichier Nginx fourni sert HTTP pour les premiers essais intranet. Pour un usage régulier, configurer un certificat interne sur le proxy et passer `SERSI_HTTPS=1`, avec les URL HTTPS dans `SERSI_TRUSTED_ORIGINS`. Si le TLS se termine sur un autre proxy de l’entreprise, adapter explicitement la transmission de `X-Forwarded-Proto` : le Nginx fourni le réécrit actuellement à partir de son propre protocole. Ne pas simplement activer `SERSI_HTTPS=1` devant un proxy HTTP non adapté, ce qui provoquerait une boucle de redirection. Contrôle de configuration après adaptation : `docker compose exec web python manage.py check --deploy`.
 
 ## Reprendre la base et les fichiers actuels
 
-La base de la version bureau analysée contient 260 produits et 467 références documentaires. Cette base et les fichiers documentaires ne sont pas inclus dans ce dépôt web. Récupérer une copie de `data/sersi_notice.db` depuis le dépôt ou l’installation bureau, puis utiliser l’import ci-dessous. Sans copie des fichiers associés, le catalogue est consultable mais les documents restent signalés « À déposer ».
+Pour transférer un catalogue web déjà renseigné vers le serveur, utiliser la sauvegarde ZIP portable et la procédure de la notice de production. La procédure ci-dessous concerne une première reprise depuis une base bureau vers un catalogue vide. La base et les fichiers documentaires ne sont pas inclus dans ce dépôt web. Récupérer une copie de `data/sersi_notice.db` depuis le dépôt ou l’installation bureau. Sans copie des fichiers associés, le catalogue est consultable mais les documents restent signalés « À déposer ».
 
 L’import initial exige un catalogue web vide. Il ne remplace ni ne fusionne des données web existantes. Les identifiants et les trois tables de relations sont conservés. Un rapport est écrit dans le volume de données. `--dry-run` valide les données puis annule la transaction, sans copie des documents.
 
