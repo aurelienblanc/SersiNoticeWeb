@@ -12,7 +12,7 @@
   <section class="panel config-panel" aria-labelledby="config-title">
     <div class="section-heading"><span class="step">01</span><div><h2 id="config-title">Configurer le dossier</h2><p>Choisissez le périmètre et les documents à inclure.</p></div></div>
     <div class="field-grid"><label for="id_systeme">Système{{ form.systeme }}</label><label for="id_marque">Marque{{ form.marque }}</label></div>
-    <fieldset class="document-types"><legend>Documents à inclure <span class="required">*</span></legend><div class="type-grid">{% for type in types_export %}<label class="type-option"><input type="checkbox" name="types_export" value="{{ type.pk }}" {% if type.pk|stringformat:'s' in selected_types %}checked{% endif %}><span><strong>{{ type.libelle }}</strong><small>Documents associés à vos produits</small></span></label>{% empty %}<p>Aucun type d’export configuré.</p>{% endfor %}</div></fieldset>
+    <fieldset class="document-types"><legend>Documents à inclure <span class="required">*</span></legend><div class="type-grid">{% for type in types_export %}<label class="type-option"><input type="checkbox" name="types_export" value="{{ type.pk }}" {% if type.pk|stringformat:'s' in selected_types %}checked{% endif %}><span><strong>{{ type.libelle }}</strong></span></label>{% empty %}<p>Aucun type d’export configuré.</p>{% endfor %}</div></fieldset>
   </section>
   <section class="panel products-panel" aria-labelledby="products-title">
     <div class="section-heading"><span class="step">02</span><div><h2 id="products-title">Sélectionner les produits</h2><p>Composez votre sélection, par référence ou par catégorie.</p></div><span class="count-pill" id="visible-count">{{ produits|length }} produits</span></div>
