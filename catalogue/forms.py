@@ -12,7 +12,7 @@ class SelectionForm(forms.Form):
     projet = forms.CharField(max_length=200, required=False, label='Nom du projet')
     client = forms.CharField(max_length=200, required=False, label='Client')
     inclure_inactifs = forms.BooleanField(required=False)
-    inclure_expires = forms.BooleanField(required=False)
+    exclure_expires = forms.BooleanField(required=False, label='Exclure les documents expirés')
 
     def clean(self):
         data = super().clean()
@@ -39,5 +39,5 @@ class SelectionForm(forms.Form):
             'marque': data['marque'].pk if data['marque'] else '',
             'projet': data['projet'], 'client': data['client'],
             'inclure_inactifs': data['inclure_inactifs'],
-            'inclure_expires': data['inclure_expires'],
+            'inclure_expires': not data['exclure_expires'],
         }

@@ -21,6 +21,12 @@ def safe_segment(value):
     return value
 
 
+def archive_filename(selection):
+    parts = [selection.get(key, '').strip() for key in ('client', 'projet')]
+    name = ' - '.join(part for part in parts if part) or 'Dossier documentaire'
+    return f'{safe_segment(name)}.zip'
+
+
 def folder_path(folder):
     seen, chunks = set(), []
     while folder:
@@ -53,8 +59,12 @@ class ExportPlan:
     expires: list = field(default_factory=list)
     taille: int = 0
 
+    @property
+    def contient_expires(self):
+        return any(item.document.expire for item in self.fichiers)
 
-def build_plan(products, export_types, include_expired=False):
+
+def build_plan(products, export_types, include_expired=True):
     plan = ExportPlan()
     selected_ids = set(export_types.values_list('pk', flat=True))
     labels = set(export_types.values_list('libelle', flat=True))
@@ -102,7 +112,6 @@ def build_plan(products, export_types, include_expired=False):
 
 def create_archive(plan, selection):
     output = tempfile.SpooledTemporaryFile(max_size=8 * 1024 * 1024, mode='w+b')
-    archive_name = safe_segment(selection['projet'] or 'Dossier documentaire')
     try:
         total = 0
         with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED, compresslevel=5) as archive:
@@ -114,7 +123,7 @@ def create_archive(plan, selection):
                     raise ValidationError('Le dossier dépasse la taille maximale autorisée.')
                 archive.write(item.document.fichier.path, item.chemin)
         output.seek(0)
-        return output, f'{archive_name}.zip'
+        return output, archive_filename(selection)
     except Exception:
         output.close()
         raise

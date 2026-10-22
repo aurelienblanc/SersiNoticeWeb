@@ -38,3 +38,5 @@
   .file-symbol, .file-download { flex-shrink: 0; }
   .file-row strong { font-size: 13px; }
 }
+
+.archive-name{min-width:0;overflow-wrap:anywhere}

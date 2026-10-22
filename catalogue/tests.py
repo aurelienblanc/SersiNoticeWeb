@@ -52,7 +52,7 @@ class ExportTests(TestCase):
         self.product.documents.add(doc)
         return doc
 
-    def plan(self, include_expired=False):
+    def plan(self, include_expired=True):
         return build_plan(Produit.objects.filter(pk=self.product.pk), TypeExport.objects.filter(pk=self.export.pk), include_expired)
 
     def selection(self):
@@ -71,7 +71,7 @@ class ExportTests(TestCase):
         plan = build_plan(Produit.objects.all(), TypeExport.objects.all())
         self.assertEqual(len(plan.fichiers), 1)
         archive, filename = create_archive(plan, self.selection())
-        self.assertEqual(filename, 'Chantier.zip')
+        self.assertEqual(filename, 'Exemple - Chantier.zip')
         self.addCleanup(archive.close)
         with zipfile.ZipFile(archive) as contents:
             self.assertEqual(contents.namelist(), ['Notices/ECS/notice.pdf'])
@@ -84,17 +84,50 @@ class ExportTests(TestCase):
         self.assertEqual(len(set(names)), 2)
         self.assertTrue(any('_2.pdf' in name for name in names))
 
-    def test_expired_documents_are_excluded_unless_explicitly_requested(self):
+    def test_expired_documents_are_included_unless_exclusion_is_checked(self):
         self.doc.date_expiration = timezone.localdate() - timedelta(days=1)
         self.doc.save()
-        self.assertEqual(len(self.plan().expires), 1)
-        self.assertFalse(self.plan().fichiers)
-        self.assertEqual(len(self.plan(True).fichiers), 1)
+        self.new_document('Document valide', 'valide.pdf')
+        self.assertEqual(len(self.plan().fichiers), 2)
+        for excluded in (False, True):
+            with self.subTest(excluded=excluded):
+                data = {**self.data, 'exclure_expires': 'on'} if excluded else self.data
+                preview = self.client.post('/preparer/', data)
+                self.assertEqual(preview.status_code, 200)
+                if excluded:
+                    self.assertContains(preview, '1 document expiré exclu')
+                else:
+                    self.assertContains(preview, 'Des documents expirés sont inclus')
+                    self.assertContains(preview, 'Expiré le')
+                response = self.client.post('/exporter/', {'selection': preview.context['token']})
+                self.assertEqual(response.status_code, 200)
+                with zipfile.ZipFile(io.BytesIO(b''.join(response.streaming_content))) as archive:
+                    self.assertIn('Notices/ECS/valide.pdf', archive.namelist())
+                    self.assertEqual('Notices/ECS/notice.pdf' in archive.namelist(), not excluded)
+
+    def test_zip_filename_uses_client_and_project_when_provided(self):
+        cases = [
+            ('', '', 'Dossier documentaire.zip'),
+            ('Client', '', 'Client.zip'),
+            ('', 'Projet', 'Projet.zip'),
+            ('Client', 'Projet', 'Client - Projet.zip'),
+            ('  Client  ', '  Projet  ', 'Client - Projet.zip'),
+            ('Client/Agence', 'Projet:Lot', 'Client_Agence - Projet_Lot.zip'),
+        ]
+        for client, project, filename in cases:
+            with self.subTest(client=client, project=project):
+                preview = self.client.post('/preparer/', {**self.data, 'client': client, 'projet': project})
+                self.assertEqual(preview.status_code, 200)
+                self.assertContains(preview, filename)
+                response = self.client.post('/exporter/', {'selection': preview.context['token']})
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response['Content-Disposition'], f'attachment; filename="{filename}"')
+                b''.join(response.streaming_content)
 
     def test_expiration_today_is_still_valid(self):
         self.doc.date_expiration = timezone.localdate()
         self.doc.save()
-        self.assertEqual(len(self.plan().fichiers), 1)
+        self.assertEqual(len(self.plan(False).fichiers), 1)
 
     def test_missing_document_requires_explicit_confirmation(self):
         self.new_document('Document absent')

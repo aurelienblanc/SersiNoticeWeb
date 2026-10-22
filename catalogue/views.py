@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 
-from .exports import build_plan, create_archive, safe_segment
+from .exports import archive_filename, build_plan, create_archive, safe_segment
 from .forms import SelectionForm
 from .journal import record_event
 from .models import Categorie, Document, ExportRecord, Marque, Produit, Systeme, TypeExport
@@ -53,6 +53,7 @@ def preview(request):
         return render(request, 'catalogue/index.html', catalogue_context(form), status=400)
     return render(request, 'catalogue/preview.html', {
         'plan': plan, 'selection': selection, 'produits': form.cleaned_data['produits'],
+        'nom_archive': archive_filename(selection),
         'token': signing.dumps(selection, salt=TOKEN_SALT, compress=True),
     })
 
@@ -65,7 +66,9 @@ def download_export(request):
     except signing.BadSignature:
         record_event('exports', 'export.rejected', 'Export refusé : sélection invalide ou expirée.', level='WARNING')
         return render(request, 'catalogue/error.html', {'message': 'La sélection a expiré ou est invalide. Préparez à nouveau votre dossier.'}, status=400)
-    form = SelectionForm(selection)
+    # Signed selections keep their inclusion flag, including previews made before
+    # the checkbox changed from opting in to opting out of expired documents.
+    form = SelectionForm({**selection, 'exclure_expires': not selection['inclure_expires']})
     if not form.is_valid():
         return render(request, 'catalogue/error.html', {'message': 'Le catalogue a changé. Préparez à nouveau votre sélection.'}, status=409)
     products = form.cleaned_data['produits']

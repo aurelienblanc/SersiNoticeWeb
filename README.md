@@ -12,8 +12,9 @@ La [notice détaillée de déploiement en production](docs/NOTICE_DEPLOIEMENT_PR
 
 - Catalogue commun, recherche par nom/référence, filtres par système, marque et catégorie. Les marques génériques restent proposées avec la marque choisie.
 - Sélection multiple, produits inactifs sur demande, nom de projet et client facultatifs.
-- Prévisualisation des fichiers, téléchargement individuel et archive ZIP avec les dossiers cibles directement à la racine. Le nom du projet sert au nom de l’archive. Les noms identiques sont conservés avec un suffixe.
-- Documents expirés exclus par défaut ; inclusion possible sur demande explicite. Les avertissements restent affichés dans le récapitulatif ; l’export partiel exige une confirmation. L’archive contient uniquement les documents sélectionnés.
+- Prévisualisation des fichiers, téléchargement individuel et archive ZIP avec les dossiers cibles directement à la racine. Les noms de documents identiques sont conservés avec un suffixe.
+- Documents expirés inclus par défaut ; cocher « Exclure les documents expirés » pour les retirer. Les avertissements restent affichés dans le récapitulatif ; l’export partiel exige une confirmation. L’archive contient uniquement les documents sélectionnés.
+- Le ZIP est nommé « Dossier documentaire.zip » sans client ni projet, « Client - Projet.zip » si les deux sont renseignés, ou avec le seul nom renseigné. Les caractères incompatibles avec un nom de fichier sont remplacés.
 - Administration aux couleurs SERSI : tableau de bord, navigation par rubrique, formulaires organisés et états des fichiers. Gestion des systèmes, marques, catégories, produits, documents, types et dossiers. Dépôt des fichiers, journal des modifications et historique des exports. Aucun nom de salarié n’est demandé.
 - Import en lecture seule du catalogue SQLite existant, copie optionnelle des fichiers et rapport CSV des documents à rattacher. L’ancien mot de passe de configuration n’est pas importé.
 
