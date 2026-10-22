@@ -2,6 +2,26 @@
   'use strict';
   const back = document.getElementById('back-selection');
   back?.addEventListener('click', () => { if (history.length > 1) history.back(); else location.assign('/'); });
+  const viewSwitch = document.getElementById('archive-view-switch');
+  if (viewSwitch) {
+    const buttons = [...viewSwitch.querySelectorAll('[data-archive-view]')];
+    const listView = document.getElementById('archive-list');
+    const treeView = document.getElementById('archive-tree');
+    const preferenceKey = 'sersi-notices.archive-view';
+    const setView = mode => {
+      listView.hidden = mode === 'tree';
+      treeView.hidden = mode !== 'tree';
+      buttons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.archiveView === mode)));
+    };
+    let preferred = 'list';
+    try { if (localStorage.getItem(preferenceKey) === 'tree') preferred = 'tree'; } catch {}
+    setView(preferred);
+    viewSwitch.hidden = false;
+    buttons.forEach(button => button.addEventListener('click', () => {
+      setView(button.dataset.archiveView);
+      try { localStorage.setItem(preferenceKey, button.dataset.archiveView); } catch {}
+    }));
+  }
   const form = document.getElementById('selection-form');
   if (!form) return;
   const rows = [...form.querySelectorAll('[data-product]')];

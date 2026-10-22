@@ -1,0 +1,9 @@
+<div class="file-row">
+  <span class="file-symbol" aria-hidden="true">▤</span>
+  <div>
+    <strong{% if nom_fichier %} title="{{ file.chemin }}"{% endif %}>{{ nom_fichier|default:file.document.nom }}</strong>
+    {% if afficher_chemin %}<code>{{ file.chemin }}</code>{% endif %}
+    {% if file.document.expire %}<span class="expired-label">Expiré le {{ file.document.date_expiration|date:'d/m/Y' }}</span>{% endif %}
+  </div>
+  <a href="{% url 'download_document' file.document.pk %}" class="file-download" aria-label="Télécharger {{ file.document.nom }}">↓</a>
+</div>

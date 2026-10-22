@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 
-from .exports import archive_filename, build_plan, create_archive, safe_segment
+from .exports import archive_filename, build_archive_tree, build_plan, create_archive, safe_segment
 from .forms import SelectionForm
 from .journal import record_event
 from .models import Categorie, Document, ExportRecord, Marque, Produit, Systeme, TypeExport
@@ -54,6 +54,7 @@ def preview(request):
     return render(request, 'catalogue/preview.html', {
         'plan': plan, 'selection': selection, 'produits': form.cleaned_data['produits'],
         'nom_archive': archive_filename(selection),
+        'arborescence': build_archive_tree(plan.fichiers),
         'token': signing.dumps(selection, salt=TOKEN_SALT, compress=True),
     })
 

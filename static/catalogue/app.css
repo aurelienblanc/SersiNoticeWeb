@@ -42,3 +42,24 @@
 .archive-name{min-width:0;overflow-wrap:anywhere}
 .preview-workspace .project-panel>.section-heading{padding:0 0 17px}
 .preview-workspace .project-panel>.summary-total{border-top:0;margin-top:0;padding-top:0}
+
+.archive-panel>.section-heading{flex-wrap:wrap}
+.archive-panel>.section-heading>.archive-view-switch{display:inline-flex;flex:0 0 auto;gap:3px;margin-left:auto;padding:3px;border:1px solid var(--line);border-radius:7px;background:var(--sersi-surface-soft);max-width:100%}
+.archive-view-switch button{min-height:36px;border:0;border-radius:4px;padding:6px 10px;background:transparent;color:var(--sersi-muted);font-size:11px;font-weight:550}
+.archive-view-switch button[aria-pressed=true]{background:var(--sersi-navy);color:var(--sersi-white)}
+.archive-view-switch button:hover[aria-pressed=false]{background:var(--sersi-blue-soft);color:var(--sersi-navy)}
+.archive-tree-view{max-height:620px;overflow:auto;border-top:1px solid var(--line);padding:10px 16px}
+.archive-tree{list-style:none;margin:0;padding:0}
+.archive-tree .archive-tree{margin-left:8px;padding-left:10px;border-left:1px solid var(--line)}
+.tree-folder>details>summary{display:flex;align-items:center;gap:8px;list-style:none;cursor:pointer;padding:10px 4px;border-radius:5px;color:var(--sersi-navy);font-size:12px;font-weight:600}
+.tree-folder>details>summary::-webkit-details-marker{display:none}
+.tree-folder>details>summary::before{content:'›';display:block;width:12px;flex:0 0 12px;text-align:center;font-size:20px;line-height:1;transform:rotate(0deg)}
+.tree-folder>details[open]>summary::before{transform:rotate(90deg)}
+.tree-folder>details>summary:hover,.archive-tree .file-row:hover{background:var(--sersi-gold-soft)}
+.folder-icon{display:block;width:19px;height:19px;flex:0 0 19px;color:var(--sersi-gold-ink)}
+.folder-name{flex:1;min-width:0;overflow-wrap:anywhere}
+.folder-count{flex-shrink:0;white-space:nowrap;font-size:9px;font-weight:400;color:var(--sersi-muted)}
+.archive-tree .file-row{border:0;border-radius:5px;padding:5px 8px;gap:8px}
+.archive-tree .file-row strong{display:block;font-weight:400;overflow-wrap:anywhere}
+.archive-tree .file-download{display:inline-flex;align-items:center;justify-content:center;min-width:40px;min-height:40px;padding:0}
+@media(max-width:640px){.archive-panel>.section-heading>div:not(.archive-view-switch){flex:1 1 calc(100% - 41px)}.archive-panel>.section-heading>.archive-view-switch{margin-left:41px}.archive-tree-view{padding:8px}.archive-tree .archive-tree{margin-left:5px;padding-left:7px}.folder-count{font-size:10px}}

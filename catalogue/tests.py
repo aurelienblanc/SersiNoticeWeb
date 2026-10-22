@@ -84,6 +84,36 @@ class ExportTests(TestCase):
         self.assertEqual(len(set(names)), 2)
         self.assertTrue(any('_2.pdf' in name for name in names))
 
+    def test_tree_preview_matches_zip_paths_with_nested_and_duplicate_files(self):
+        self.doc.dossiers.add(self.folder)
+        self.new_document('Second document', 'NOTICE.pdf')
+        other = Produit.objects.create(reference='REF-02', nom='Second', marque=self.brand, categorie=self.category)
+        other.documents.add(self.doc)
+        preview = self.client.post('/preparer/', {**self.data, 'produits': [self.product.pk, other.pk]})
+        self.assertEqual(preview.status_code, 200)
+        self.assertContains(preview, 'aria-controls="archive-list"')
+        self.assertContains(preview, 'aria-controls="archive-tree"')
+        tree = preview.context['arborescence']
+        self.assertEqual(tree['nombre_fichiers'], 3)
+        self.assertEqual([folder['nom'] for folder in tree['dossiers']], ['Notices'])
+        notices = tree['dossiers'][0]
+        self.assertEqual([folder['nom'] for folder in notices['dossiers']], ['ECS'])
+        paths = {f"Notices/{entry['nom']}" for entry in notices['fichiers']}
+        paths.update(f"Notices/ECS/{entry['nom']}" for entry in notices['dossiers'][0]['fichiers'])
+        self.assertEqual(paths, {'Notices/notice.pdf', 'Notices/ECS/notice.pdf', 'Notices/ECS/NOTICE_2.pdf'})
+        response = self.client.post('/exporter/', {'selection': preview.context['token']})
+        self.assertEqual(response.status_code, 200)
+        with zipfile.ZipFile(io.BytesIO(b''.join(response.streaming_content))) as archive:
+            self.assertEqual(set(archive.namelist()), paths)
+
+    def test_unavailable_files_do_not_create_tree_folders(self):
+        Path(self.doc.fichier.path).unlink()
+        preview = self.client.post('/preparer/', self.data)
+        self.assertEqual(preview.status_code, 200)
+        self.assertEqual(preview.context['arborescence'], {'dossiers': [], 'fichiers': [], 'nombre_fichiers': 0})
+        self.assertContains(preview, 'Aucun fichier disponible.')
+        self.assertNotContains(preview, 'id="archive-view-switch"')
+
     def test_expired_documents_are_included_unless_exclusion_is_checked(self):
         self.doc.date_expiration = timezone.localdate() - timedelta(days=1)
         self.doc.save()

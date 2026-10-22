@@ -64,6 +64,26 @@ class ExportPlan:
         return any(item.document.expire for item in self.fichiers)
 
 
+def build_archive_tree(files):
+    root = {'dossiers': {}, 'fichiers': []}
+    for item in files:
+        *folders, filename = item.chemin.split('/')
+        node = root
+        for name in folders:
+            node = node['dossiers'].setdefault(name, {'nom': name, 'dossiers': {}, 'fichiers': []})
+        node['fichiers'].append({'nom': filename, 'fichier': item})
+
+    def finish(node):
+        node['dossiers'] = [finish(folder) for _, folder in sorted(
+            node['dossiers'].items(), key=lambda pair: pair[0].casefold())]
+        node['fichiers'].sort(key=lambda entry: entry['nom'].casefold())
+        node['nombre_fichiers'] = len(node['fichiers']) + sum(
+            folder['nombre_fichiers'] for folder in node['dossiers'])
+        return node
+
+    return finish(root)
+
+
 def build_plan(products, export_types, include_expired=True):
     plan = ExportPlan()
     selected_ids = set(export_types.values_list('pk', flat=True))
