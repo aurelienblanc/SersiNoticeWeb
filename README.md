@@ -164,7 +164,28 @@ Un fichier déposé depuis l’administration est limité à 50 Mo. Un export es
 
 Les anciens fichiers restent conservés dans le volume après remplacement ou suppression d’un document, afin d’éviter une suppression physique accidentelle. Leur purge éventuelle doit être précédée d’une sauvegarde. L’historique des exports conserve le nom du projet et les compteurs. Sans connexion des collaborateurs, aucun suivi nominatif des exports n’est possible.
 
-Les 49 tests couvrent le catalogue public, les exports ZIP, les expirations, les fichiers manquants, les collisions de noms, les chemins, les plafonds et la migration du format SQLite de la version bureau. Ils vérifient aussi le mot de passe commun, la protection CSRF, la limitation des tentatives, le renouvellement et la révocation des sessions, l’absence de gestion des comptes et le journal des modifications. Les essais de maintenance couvrent les restaurations avec retour arrière en cas d’échec, les empreintes, les chemins dangereux, le service en arrière-plan, la planification, la conservation et la protection des téléchargements. La CI exécute ces tests sous SQLite et PostgreSQL, puis construit et démarre Docker Compose et vérifie les réponses HTTP du catalogue et du contrôle de santé. Docker n’est pas installé sur le poste de préparation ; le serveur définitif et ses sauvegardes restent à valider dans leur environnement réseau.
+Les tests Django couvrent le catalogue public, les exports ZIP, les expirations, les fichiers manquants, les collisions de noms, les chemins, les plafonds et la migration du format SQLite de la version bureau. Ils vérifient aussi le mot de passe commun, la protection CSRF, la limitation des tentatives par client, le renouvellement et la révocation des sessions, l’absence de gestion des comptes et le journal des modifications. Les essais de maintenance couvrent les restaurations avec retour arrière en cas d’échec, les empreintes, les chemins dangereux, le service en arrière-plan, la planification, la conservation, les diagnostics filtrés et la protection des téléchargements. La CI exécute ces tests sous SQLite et PostgreSQL, puis construit et démarre Docker Compose et vérifie HTTP et HTTPS.
+
+Le groupe d’export est obligatoire à la création ou modification d’un type de document dans l’administration. Un ancien import ou une sauvegarde peut encore contenir un type sans groupe : ses documents sont alors signalés comme indisponibles dans le récapitulatif, avec confirmation nécessaire pour un export incomplet. Affecter le groupe approprié depuis **Types de document** pour corriger le classement. Aucun libellé de groupe n’est interprété comme une règle métier implicite.
+
+`SERSI_TRUST_PROXY=1` autorise Django à utiliser `X-Real-IP` pour limiter les tentatives par client et l’en-tête de protocole pour HTTPS. Ce réglage est activé dans Compose, où le port web reste privé et où Nginx remplace ces en-têtes sur toutes les routes. Ne l’activer que si toutes les requêtes passent par ce proxy de confiance, sans accès direct au service web. Hors proxy, la valeur par défaut est `0` et les en-têtes transférés sont ignorés pour la limitation des tentatives.
+
+## Développement de l’interface et contrôles de formatage
+
+Les outils de développement utilisent Python 3.12, Node.js 24 et pnpm 11.25.0. Ils ne sont pas nécessaires à l’exécution de l’application en production. Depuis un environnement de développement :
+
+```sh
+python -m pip install -r requirements-dev.txt
+pnpm install --frozen-lockfile
+pnpm exec playwright install chromium
+pnpm run test:browser
+pnpm run format:check
+python -m djlint templates --check
+```
+
+Les parcours Playwright sont exécutés sur des tailles PC et mobile. Ils couvrent les filtres liés, les produits génériques/inactifs, la recherche, la sélection, les documents expirés, les vues liste/arborescence, la mémorisation de la vue et le téléchargement du ZIP. Le serveur de test utilise le port **8767**, un catalogue synthétique et un nouveau dossier `.tmp/browser-tests/` à chaque lancement ; il refuse de réutiliser un serveur déjà présent. Il ne charge pas le catalogue de travail. `SERSI_TEST_PYTHON` peut désigner le chemin d’un interpréteur Python et `SERSI_BROWSER_CHANNEL=msedge` permet d’utiliser Edge installé localement. La CI installe et utilise Chromium.
+
+Pour reformater les sources : `pnpm run format` pour CSS/JavaScript et `python -m djlint templates --reformat` pour les templates Django. La configuration est versionnée ; la CI refuse les fichiers qui ne respectent pas ce format. Les dépendances JavaScript sont réservées aux tests et au formatage, sans compilation du site ni ajout de bibliothèque au navigateur des salariés.
 
 Références : [Django 5.2 LTS](https://docs.djangoproject.com/fr/5.2/releases/5.2/), [déploiement Django](https://docs.djangoproject.com/fr/5.2/howto/deployment/checklist/), [Gunicorn](https://gunicorn.org/).
 

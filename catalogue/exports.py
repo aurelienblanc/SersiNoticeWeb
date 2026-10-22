@@ -10,15 +10,30 @@ from django.core.exceptions import ValidationError
 
 from .models import Document, validate_folder_path
 
+SEGMENT_MAX_LENGTH = 150
 
-def safe_segment(value):
+
+def safe_segment(value, max_length=SEGMENT_MAX_LENGTH):
     value = unicodedata.normalize('NFC', str(value))
-    value = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', value).strip(' .')[:150]
-    if not value:
-        return 'Sans nom'
+    value = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', value).strip(' .')
+    value = value or 'Sans nom'
+    if max_length is not None:
+        value = value[:max_length].rstrip(' .') or 'Sans nom'[:max_length]
     if value.split('.')[0].upper() in {'CON', 'PRN', 'AUX', 'NUL', *(f'COM{i}' for i in range(1, 10)), *(f'LPT{i}' for i in range(1, 10))}:
         value = '_' + value
-    return value
+    return value[:max_length] if max_length is not None else value
+
+
+def safe_filename(value, counter=None):
+    """Limit the filename, keeping its extension and any collision suffix."""
+    name = safe_segment(value, max_length=None)
+    extension = Path(name).suffix
+    disambiguator = f'_{counter}' if counter is not None else ''
+    if len(extension) >= SEGMENT_MAX_LENGTH - len(disambiguator):
+        extension = ''
+    stem = name[:-len(extension)] if extension else name
+    stem = safe_segment(stem, max_length=SEGMENT_MAX_LENGTH - len(extension) - len(disambiguator))
+    return f'{stem}{disambiguator}{extension}'
 
 
 def archive_filename(selection):
@@ -87,16 +102,14 @@ def build_archive_tree(files):
 def build_plan(products, export_types, include_expired=True):
     plan = ExportPlan()
     selected_ids = set(export_types.values_list('pk', flat=True))
-    labels = set(export_types.values_list('libelle', flat=True))
     used = set()
     documents = Document.objects.filter(produits__in=products).distinct().select_related('type_document').prefetch_related('dossiers__parent')
     for document in documents:
         kind = document.type_document
-        if kind.type_export_id:
-            eligible = kind.type_export_id in selected_ids
-        else:
-            eligible = ('commercial' in labels and kind.nom == 'Fiche commercial') or ('techniques' in labels and kind.nom != 'Fiche commercial')
-        if not eligible:
+        if not kind.type_export_id:
+            plan.indisponibles.append(Issue(document.nom, 'Type de document sans groupe d’export : à configurer dans l’administration'))
+            continue
+        if kind.type_export_id not in selected_ids:
             continue
         if document.expire and not include_expired:
             plan.expires.append(document)
@@ -109,7 +122,7 @@ def build_plan(products, export_types, include_expired=True):
             plan.indisponibles.append(Issue(document.nom, 'Aucun dossier cible configuré'))
             continue
         size = Path(document.fichier.path).stat().st_size
-        filename = safe_segment(document.nom_fichier or document.nom + Path(document.fichier.name).suffix)
+        filename = safe_filename(document.nom_fichier or document.nom + Path(document.fichier.name).suffix)
         for folder in folders:
             try:
                 directory = folder_path(folder)
@@ -119,8 +132,7 @@ def build_plan(products, export_types, include_expired=True):
             original = f'{directory}/{filename}'
             arcname, counter = original, 2
             while arcname.casefold() in used:
-                stem, suffix = Path(filename).stem, Path(filename).suffix
-                arcname = f'{directory}/{stem}_{counter}{suffix}'
+                arcname = f'{directory}/{safe_filename(filename, counter)}'
                 counter += 1
             used.add(arcname.casefold())
             plan.taille += size

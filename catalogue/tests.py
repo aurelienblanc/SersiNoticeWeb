@@ -210,6 +210,48 @@ class ExportTests(TestCase):
         other = TypeExport.objects.create(libelle='Commercial')
         self.assertFalse(build_plan(Produit.objects.all(), TypeExport.objects.filter(pk=other.pk)).fichiers)
 
+    def test_unmapped_legacy_type_is_reported_and_requires_incomplete_confirmation(self):
+        kind = TypeDocument.objects.create(nom='Ancien type sans groupe')
+        document = self.new_document('PDF non classé', 'non-classe.pdf')
+        document.type_document = kind
+        document.save()
+        preview = self.client.post('/preparer/', self.data)
+        self.assertContains(preview, 'PDF non classé')
+        self.assertContains(preview, 'Type de document sans groupe')
+        plan = preview.context['plan']
+        self.assertEqual(len(plan.fichiers), 1)
+        self.assertEqual(len(plan.indisponibles), 1)
+        token = preview.context['token']
+        self.assertEqual(self.client.post('/exporter/', {'selection': token}).status_code, 409)
+        response = self.client.post('/exporter/', {'selection': token, 'accepter_incomplet': 'on'})
+        self.assertEqual(response.status_code, 200)
+        with zipfile.ZipFile(io.BytesIO(b''.join(response.streaming_content))) as archive:
+            self.assertEqual(archive.namelist(), ['Notices/ECS/notice.pdf'])
+        self.assertTrue(ExportRecord.objects.get().incomplet)
+
+    def test_long_pdf_names_keep_extension_in_zip_and_individual_download(self):
+        self.doc.nom_fichier = 'A' * 151 + '.pdf'
+        self.doc.save()
+        expected = 'A' * 146 + '.pdf'
+        plan = self.plan()
+        self.assertEqual(plan.fichiers[0].chemin, f'Notices/ECS/{expected}')
+        output, _ = create_archive(plan, self.selection())
+        with output, zipfile.ZipFile(output) as archive:
+            self.assertEqual(archive.namelist(), [f'Notices/ECS/{expected}'])
+        response = self.client.get(f'/documents/{self.doc.pk}/telecharger/')
+        self.assertEqual(response['Content-Disposition'], f'attachment; filename="{expected}"')
+        b''.join(response.streaming_content)
+
+    def test_long_filename_collisions_preserve_extension_and_limit(self):
+        self.doc.nom_fichier = 'A' * 151 + '.pdf'
+        self.doc.save()
+        other = self.new_document('Second PDF', 'second.pdf')
+        other.nom_fichier = 'A' * 150 + 'B.pdf'
+        other.save()
+        names = [Path(item.chemin).name for item in self.plan().fichiers]
+        self.assertEqual(names, ['A' * 146 + '.pdf', 'A' * 144 + '_2.pdf'])
+        self.assertTrue(all(len(name) == 150 for name in names))
+
     def test_path_traversal_and_folder_cycles_are_rejected(self):
         self.child.chemin_relatif = '../secret'
         with self.assertRaises(ValidationError):

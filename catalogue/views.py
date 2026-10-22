@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 
-from .exports import archive_filename, build_archive_tree, build_plan, create_archive, safe_segment
+from .exports import archive_filename, build_archive_tree, build_plan, create_archive, safe_filename
 from .forms import SelectionForm
 from .journal import record_event
 from .models import Categorie, Document, ExportRecord, Marque, Produit, Systeme, TypeExport
@@ -100,7 +100,7 @@ def download_document(request, pk):
         raise Http404('Ce document est indisponible.')
     try:
         response = FileResponse(document.fichier.open('rb'), as_attachment=True,
-                                filename=safe_segment(document.nom_fichier or document.nom + Path(document.fichier.name).suffix),
+                                filename=safe_filename(document.nom_fichier or document.nom + Path(document.fichier.name).suffix),
                                 content_type='application/octet-stream')
     except OSError:
         raise Http404('Ce document est indisponible.')

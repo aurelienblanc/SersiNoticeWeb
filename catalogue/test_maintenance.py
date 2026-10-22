@@ -260,6 +260,21 @@ class MaintenanceTests(TransactionTestCase):
         self.assertNotIn('secret', serialized)
         self.assertEqual(event.details['exception'], 'RuntimeError')
 
+    def test_worker_error_keeps_safe_stack_in_journal_and_console(self):
+        job = queue_job('backup')
+        with patch('catalogue.maintenance.create_backup', side_effect=OSError('secret-exception-text')):
+            with self.assertLogs('catalogue.maintenance', level='ERROR') as logs:
+                result = run_pending_job()
+        self.assertEqual(result.status, 'failed')
+        event = ActivityEvent.objects.get(event='maintenance.failed')
+        self.assertEqual(event.details['operation'], str(job.pk))
+        self.assertEqual(event.details['exception'], 'OSError')
+        self.assertTrue(event.details['pile'])
+        self.assertIn('run_pending_job', [frame['fonction'] for frame in event.details['pile']])
+        for value in (event.message, json.dumps(event.details), ''.join(logs.output)):
+            self.assertNotIn('secret-exception-text', value)
+        self.assertIn(str(job.pk), ''.join(logs.output))
+
     def test_daily_schedule_is_enqueued_once_and_logs_follow_retention(self):
         old = record_event('system', 'old', 'Ancien événement')
         ActivityEvent.objects.filter(pk=old.pk).update(created_at=timezone.now() - timedelta(days=100))
