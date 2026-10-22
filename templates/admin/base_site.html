@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}{{ title }} · SERSI Notices{% endblock %}
 {% block dark-mode-vars %}{% endblock %}
-{% block responsive %}{{ block.super }}<link rel="stylesheet" href="{% static 'admin/sersi.css' %}?v=20261021-3"><link rel="icon" href="{% static 'catalogue/sersi-logo.ico' %}">{% endblock %}
+{% block responsive %}{{ block.super }}<link rel="stylesheet" href="{% static 'sersi/palette.css' %}?v=20261022-1"><link rel="stylesheet" href="{% static 'admin/sersi.css' %}?v=20261022-1"><link rel="icon" href="{% static 'catalogue/sersi-logo.ico' %}">{% endblock %}
 {% block branding %}<a class="admin-brand" href="{% url 'admin:index' %}"><span class="brand-logo"><img src="{% static 'catalogue/sersi-logo.png' %}" alt="Groupe SERSI"></span><span class="brand-name">SERSI Notices<small>ADMINISTRATION</small></span></a>{% endblock %}
 {% block usertools %}{% if has_permission %}<div class="admin-tools"><a href="{% url 'index' %}">↗ Ouvrir le catalogue</a><a href="{% url 'admin:password_change' %}">Mot de passe commun</a><form method="post" action="{% url 'admin:logout' %}">{% csrf_token %}<button type="submit">Déconnexion</button></form></div>{% endif %}{% endblock %}
 {% block nav-sidebar %}{% if has_permission %}{% include 'admin/sersi_navigation.html' %}{% endif %}{% endblock %}

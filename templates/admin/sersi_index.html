@@ -3,7 +3,7 @@
 {% block content_title %}{% endblock %}
 {% block breadcrumbs %}<div class="breadcrumbs">Administration <span>/</span> Tableau de bord</div>{% endblock %}
 {% block content %}
-<div class="dashboard-heading"><div><span class="eyebrow">ESPACE ADMINISTRATION</span><h1>Votre bibliothèque, à jour<span class="orange">.</span></h1><p>Gérez vos références, classez les documents et préparez les prochains dossiers.</p></div><a class="outline-button" href="{% url 'index' %}">Voir le catalogue ↗</a></div>
+<div class="dashboard-heading"><div><span class="eyebrow">ESPACE ADMINISTRATION</span><h1>Votre bibliothèque, à jour<span class="accent">.</span></h1><p>Gérez vos références, classez les documents et préparez les prochains dossiers.</p></div><a class="outline-button" href="{% url 'index' %}">Voir le catalogue ↗</a></div>
 <div class="admin-stats">
   <a href="{% url 'admin:catalogue_produit_changelist' %}"><span>Produits</span><strong>{{ catalogue_stats.produits }}</strong><small>références au catalogue</small></a>
   <a href="{% url 'admin:catalogue_document_changelist' %}"><span>Documents</span><strong>{{ catalogue_stats.documents }}</strong><small>fichiers référencés</small></a>

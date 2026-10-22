@@ -4,6 +4,8 @@ Première version fonctionnelle pour les collaborateurs du Groupe SERSI, accessi
 
 Ce dépôt contient uniquement la version web. La version bureau est maintenue séparément dans [SersiNoticeApp](https://github.com/aurelienblanc/SersiNoticeApp). Les deux applications disposent de leur propre base ; le transfert initial se fait par import en lecture seule de la base bureau.
 
+La palette commune au catalogue et à l’administration est définie dans `static/sersi/palette.css` : or `#C99B43`, bleu marine `#0F3057`, bordeaux `#800000`, anthracite `#303030`, gris `#D3D3D3`, noir et blanc. Les fonds et les états utilisent des déclinaisons de ces couleurs ; les boutons dorés ont un texte sombre, les actions destructives un fond bordeaux et un texte blanc.
+
 ## Fonctionnement
 
 - Catalogue commun, recherche par nom/référence, filtres par système, marque et catégorie. Les marques génériques restent proposées avec la marque choisie.

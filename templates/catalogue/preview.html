@@ -3,7 +3,7 @@
 {% block page_label %}Vérifier le dossier{% endblock %}
 {% block content %}
 <a href="{% url 'index' %}" class="back-link">← Nouvelle sélection</a>
-<div class="page-heading"><div><span class="eyebrow">RÉCAPITULATIF</span><h1>Votre dossier est préparé<span class="orange">.</span></h1><p>Vérifiez les documents et téléchargez votre archive.</p></div><div class="heading-icon" aria-hidden="true">✓</div></div>
+<div class="page-heading"><div><span class="eyebrow">RÉCAPITULATIF</span><h1>Votre dossier est préparé<span class="accent">.</span></h1><p>Vérifiez les documents et téléchargez votre archive.</p></div><div class="heading-icon" aria-hidden="true">✓</div></div>
 <div class="workspace preview-workspace"><div class="workspace-main">
 {% if plan.indisponibles %}<div class="alert warning"><strong>{{ plan.indisponibles|length }} document{{ plan.indisponibles|length|pluralize }} indisponible{{ plan.indisponibles|length|pluralize }}</strong><p>Ces documents ne peuvent pas être ajoutés à l’archive. Vous pouvez télécharger les fichiers disponibles en confirmant un export incomplet.</p><details><summary>Voir les documents concernés</summary><ul>{% for issue in plan.indisponibles %}<li><strong>{{ issue.nom }}</strong> — {{ issue.raison }}</li>{% endfor %}</ul></details></div>{% endif %}
 {% if plan.expires %}<div class="alert"><strong>{{ plan.expires|length }} document{{ plan.expires|length|pluralize }} expiré{{ plan.expires|length|pluralize }} exclu{{ plan.expires|length|pluralize }}</strong><details><summary>Voir les documents expirés</summary><ul>{% for doc in plan.expires %}<li>{{ doc.nom }} — {{ doc.date_expiration|date:'d/m/Y' }}</li>{% endfor %}</ul></details></div>{% endif %}

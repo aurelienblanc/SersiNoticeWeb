@@ -2,7 +2,7 @@
 {% block extrahead %}{{ block.super }}<script src="{% static 'admin/maintenance.js' %}" defer></script>{% endblock %}
 {% block content_title %}{% endblock %}
 {% block content %}
-<div class="dashboard-heading"><div><span class="eyebrow">CONTINUITÉ DE VOTRE BIBLIOTHÈQUE</span><h1>Maintenance et sauvegardes<span class="orange">.</span></h1><p>Conservez vos données, vérifiez vos archives et suivez les opérations.</p></div></div>
+<div class="dashboard-heading"><div><span class="eyebrow">CONTINUITÉ DE VOTRE BIBLIOTHÈQUE</span><h1>Maintenance et sauvegardes<span class="accent">.</span></h1><p>Conservez vos données, vérifiez vos archives et suivez les opérations.</p></div></div>
 <nav class="maintenance-tabs" aria-label="Maintenance"><a class="selected" href="{% url 'admin:maintenance' %}">Sauvegardes</a><a href="{% url 'admin:maintenance_journal' %}">Journal d’activité</a></nav>
 <div class="maintenance-summary"><span><strong>{{ backup_count }}</strong> sauvegarde{{ backup_count|pluralize }} · {{ backup_size|filesizeformat }}</span><span class="file-state {% if worker_alive %}available{% else %}expired{% endif %}">{% if worker_alive %}Service de maintenance actif{% else %}Service de maintenance arrêté{% endif %}</span></div>
 {% if not worker_alive %}<div class="maintenance-notice">Le service de maintenance ne répond pas actuellement. Les opérations demandées resteront en attente jusqu’à son redémarrage.</div>{% endif %}
