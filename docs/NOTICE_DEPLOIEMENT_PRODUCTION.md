@@ -1,18 +1,18 @@
 # SERSI Notices
 ## Notice de déploiement en production
 
-Version 1.0 - 22 octobre 2026. Référence applicative : `9e61663cffece2f5c64731b9b2aeb763a01f2f98`.
+Version 1.1 - 22 octobre 2026. Utiliser une révision validée de `main` et consigner son SHA lors de l’installation.
 
-Cette notice s'adresse à la personne chargée du serveur et du réseau. Elle décrit une installation sur une VM Ubuntu 24.04 LTS, avec Docker Engine, PostgreSQL et HTTPS. Le matériel, l'adresse IP, le nom DNS et l'autorité de certification restent à choisir avec votre prestataire informatique. Les valeurs données ci-dessous sont des exemples à remplacer.
+Cette notice s'adresse à la personne chargée du serveur et du réseau. Elle décrit une installation sur une VM Ubuntu 24.04 LTS, avec Docker Engine, PostgreSQL et HTTPS. Le service est déployé sur le réseau interne à `https://sersi-notices.sersi.fr/`. Pour une nouvelle installation, choisir le matériel, l’adresse IP et l’autorité de certification avec votre prestataire informatique. Les valeurs données ci-dessous sont des exemples à remplacer.
 
-Le catalogue est ouvert aux collaborateurs joignant le réseau interne ou le VPN. L'administration utilise un seul mot de passe commun. Le poste de test Windows et l'application bureau restent indépendants du serveur de production.
+Le catalogue est ouvert aux collaborateurs joignant le réseau interne ou le VPN. L'administration utilise un seul mot de passe commun. L’environnement de développement reste indépendant du serveur de production.
 
-**Livrables du kit :** cette notice, sa version PDF, et le dossier `production/` contenant `compose.production.yaml`, `nginx.https.conf` et `env.production.example`. Les commandes sont à copier depuis la version Markdown. Les exemples HTTPS ne sont pas activés par le simple ajout de la documentation au dépôt.
+**Sources de référence :** cette notice et le dossier `deploy/production/` du dépôt, contenant `compose.production.yaml`, `nginx.https.conf` et `env.production.example`. Les commandes sont à copier depuis la version Markdown. Les exemples HTTPS ne sont pas activés par le simple ajout de la documentation au dépôt.
 
 ### Parcours conseillé
 
 1. Valider la fiche d'installation et préparer la VM.
-2. Installer Docker, récupérer la révision et transférer le kit.
+2. Installer Docker, récupérer la révision et préparer les fichiers de production.
 3. Configurer le DNS, le certificat, les secrets et les accès réseau.
 4. Démarrer les services et reprendre une sauvegarde du catalogue actuel.
 5. Effectuer la recette, une sauvegarde et un essai de restauration isolé.
@@ -110,13 +110,13 @@ docker run --rm hello-world
 
 Le programme attendu est le plugin `docker compose`, avec les options `--wait` et `--wait-timeout`. Le lancement applicatif utilisera Gunicorn et Nginx. Le serveur `manage.py runserver` reste réservé aux essais, conformément à la [checklist de déploiement Django](https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/).
 
-## 4. Installer le code et les fichiers du kit
+## 4. Installer le code et les fichiers de production
 
 ### 4.1. Récupérer une révision précise
 
 Le dépôt web est `aurelienblanc/SersiNoticeWeb`. L'accès au dépôt privé doit être autorisé sur le serveur, par exemple avec une clé de déploiement GitHub en lecture seule. Conserver la clé privée sur le serveur et contrôler l'identité de l'hôte SSH avant sa première acceptation. Voir [GitHub - clés de déploiement](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/managing-deploy-keys).
 
-À la date de rédaction, les évolutions sont dans `codex/exports-zip-directs` ; elles ne sont pas encore fusionnées dans `main`. Les commandes ci-dessous figent la révision applicative couverte par cette notice. Pour une version ultérieure, sélectionner une révision validée et suivre le chapitre 12.
+Les versions livrées sont fusionnées dans `main`. Choisir un SHA dont les contrôles sont réussis, le renseigner ci-dessous et conserver cette référence. Les mises à jour ultérieures suivent le chapitre 12.
 
 ```bash
 install -d -m 0750 /srv/sersi-notices
@@ -128,26 +128,23 @@ install -d -m 0770 -o 10001 -g 10001 /srv/sersi-notices/archives
 git clone git@github.com:aurelienblanc/SersiNoticeWeb.git \
   /srv/sersi-notices/app
 cd /srv/sersi-notices/app
-git checkout --detach 9e61663cffece2f5c64731b9b2aeb763a01f2f98
+SN_REVISION=SHA_VALIDE_A_RENSEIGNER
+git cat-file -e "${SN_REVISION}^{commit}"
+git checkout --detach "$SN_REVISION"
 git rev-parse HEAD
 ```
 
-### 4.2. Transférer le kit de production
+### 4.2. Préparer les fichiers de production
 
-Depuis le PC, décompresser le kit fourni avec cette notice et transférer son dossier `production/` sur le serveur, par exemple avec WinSCP. Le dossier d'arrivée utilisé dans l'exemple est `/home/admin-linux/sersi-kit/production`. Adapter `SN_KIT` au chemin réel. Ces fichiers d'exemple sont fournis dans le kit parce que la révision applicative figée ci-dessus est antérieure à leur ajout au dépôt.
+Les exemples sont fournis dans la révision du dépôt choisie. Copier ces fichiers hors du code pour conserver la configuration locale lors des mises à jour. Ces commandes concernent une installation neuve ; ne pas remplacer un `.env` de production existant.
 
 ```bash
-SN_KIT=/home/admin-linux/sersi-kit
-test -f "$SN_KIT/production/compose.production.yaml"
-test -f "$SN_KIT/production/nginx.https.conf"
-test -f "$SN_KIT/production/env.production.example"
-
-install -m 0644 "$SN_KIT/production/compose.production.yaml" \
+cd /srv/sersi-notices/app
+install -m 0644 deploy/production/compose.production.yaml \
   /srv/sersi-notices/config/compose.production.yaml
-install -m 0644 "$SN_KIT/production/nginx.https.conf" \
+install -m 0644 deploy/production/nginx.https.conf \
   /srv/sersi-notices/config/nginx.https.conf
-install -m 0600 "$SN_KIT/production/env.production.example" \
-  /srv/sersi-notices/app/.env
+install -m 0600 deploy/production/env.production.example .env
 ```
 
 Les fichiers de production surchargent la configuration de base sans la modifier : ils ajoutent HTTPS, les montages des certificats et la rotation des logs Docker. Ce principe de surcharge est décrit dans [Docker Compose - production](https://docs.docker.com/compose/how-tos/production/).
@@ -247,9 +244,9 @@ Faire appliquer puis vérifier les règles suivantes sur le pare-feu réseau et/
 
 ### 6.3. Si l'entreprise possède déjà un reverse proxy HTTPS
 
-La procédure principale termine HTTPS dans le Nginx du kit. Avec un proxy d'entreprise terminant le TLS en amont, faire adapter le chemin par l'informatique : conserver le nom d'hôte et transmettre le protocole HTTPS de façon fiable. Le Nginx HTTP de base écrit `X-Forwarded-Proto` à partir de son propre `$scheme` ; il verrait alors HTTP et provoquerait des redirections répétées si `SERSI_HTTPS=1`.
+La procédure principale termine HTTPS dans le Nginx fourni. Avec un proxy d'entreprise terminant le TLS en amont, faire adapter le chemin par l'informatique : conserver le nom d'hôte et transmettre le protocole HTTPS de façon fiable. Le Nginx HTTP de base écrit `X-Forwarded-Proto` à partir de son propre `$scheme` ; il verrait alors HTTP et provoquerait des redirections répétées si `SERSI_HTTPS=1`.
 
-Une configuration adaptée peut fixer `X-Forwarded-Proto https` sur le seul accès backend réservé au proxy d'entreprise. Ce backend doit être joignable uniquement par ce proxy. La transmission aveugle d'un en-tête fourni par le client n'est pas une preuve de HTTPS. Voir [Nginx - en-têtes du proxy](https://nginx.org/en/docs/http/ngx_http_proxy_module.html). Ce scénario doit faire l'objet d'une validation réseau séparée ; le kit fourni correspond au TLS terminé dans son Nginx.
+Une configuration adaptée peut fixer `X-Forwarded-Proto https` sur le seul accès backend réservé au proxy d'entreprise. Ce backend doit être joignable uniquement par ce proxy. La transmission aveugle d'un en-tête fourni par le client n'est pas une preuve de HTTPS. Voir [Nginx - en-têtes du proxy](https://nginx.org/en/docs/http/ngx_http_proxy_module.html). Ce scénario doit faire l'objet d'une validation réseau séparée ; la configuration fournie correspond au TLS terminé dans son Nginx.
 
 ## 7. Démarrer l'application et créer l'accès administrateur
 
@@ -313,10 +310,6 @@ print('Documents :', Document.objects.count())
 print('Fichiers disponibles :', sum(d.disponible for d in Document.objects.all()))
 PY
 ```
-
-### 8.3. Cas d'une première reprise depuis l'application bureau
-
-La méthode ZIP précédente est la méthode de bascule de l'environnement web actuel. Pour un catalogue entièrement neuf à reprendre depuis le logiciel bureau, le dépôt fournit aussi `import_legacy` puis `attach_legacy_files`. Cet import exige un catalogue cible vide et un montage en lecture seule du répertoire documentaire. La procédure correspondante reste décrite dans le README du dépôt ; elle ne doit pas être cumulée avec la restauration du même catalogue web.
 
 ## 9. Recette avant ouverture générale
 
@@ -451,7 +444,7 @@ docker compose exec web python manage.py check --deploy
 docker compose exec maintenance python manage.py maintenance_worker --check-health
 ```
 
-Le redémarrage du web applique les migrations. Le proxy est recréé pour reprendre la configuration et résoudre de nouveau l'adresse Docker du service web. Vérifier ensuite HTTPS, la connexion, un PDF et un ZIP, puis une sauvegarde. Garder l'ancienne image et l'instantané jusqu'à stabilisation.
+Le redémarrage du web applique les migrations. La migration `catalogue.0005_remove_document_source_path` retire une métadonnée de chemin source, sans supprimer les documents, les relations ni les PDF. Les nouvelles sauvegardes utilisent le format web 2 ; les sauvegardes web de format 1 restent lisibles. Une ancienne version de l’application ne lit pas le format 2 : conserver l’instantané complet avant mise à jour pour un retour arrière. Le proxy est recréé pour reprendre la configuration et résoudre de nouveau l'adresse Docker du service web. Vérifier ensuite HTTPS, la connexion, un PDF et un ZIP, puis une sauvegarde. Garder l'ancienne image et l'instantané jusqu'à stabilisation.
 
 La ligne `git status --short` doit être examinée : une modification locale de fichier suivi doit être traitée avant le changement de version. Les mises à jour de Docker Engine, de PostgreSQL et des images de base sont à planifier et tester séparément. Le passage à une nouvelle version majeure PostgreSQL nécessite une procédure dédiée ; modifier uniquement le numéro d'image n'effectue pas la migration.
 

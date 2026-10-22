@@ -100,6 +100,8 @@ class MaintenanceTests(TransactionTestCase):
             self.assertEqual(set(archive.namelist()), {'manifest.json', 'catalogue.json', 'historique.json', 'journal.json', f'documents/{self.document.fichier.name}'})
             self.assertNotIn(self.password, archive.read('catalogue.json').decode())
             self.assertNotIn('password_hash', archive.read('catalogue.json').decode())
+            self.assertNotIn('ancien_chemin', archive.read('catalogue.json').decode())
+            self.assertEqual(json.loads(archive.read('manifest.json'))['version'], 2)
         path.write_bytes(path.read_bytes() + b'changed')
         with self.assertRaises(BackupError):
             restore_backup(backup)
@@ -139,6 +141,63 @@ class MaintenanceTests(TransactionTestCase):
                 archive.writestr(name, content)
         with self.assertRaises(BackupError):
             validate_archive(path)
+
+    def rewrite_web_backup(self, backup, *, version, extra_fields):
+        """Rebuild a web-format fixture with consistent checksums."""
+        path = backup_path(backup)
+        with zipfile.ZipFile(path) as archive:
+            data = {name: archive.read(name) for name in archive.namelist()}
+        rows = json.loads(data['catalogue.json'])
+        for row in rows:
+            if row['model'] == 'catalogue.document':
+                row['fields'].update(extra_fields)
+        data['catalogue.json'] = json.dumps(rows).encode()
+        manifest = json.loads(data['manifest.json'])
+        manifest['version'] = version
+        manifest['entries']['catalogue.json'] = {
+            'size': len(data['catalogue.json']),
+            'sha256': hashlib.sha256(data['catalogue.json']).hexdigest(),
+        }
+        data['manifest.json'] = json.dumps(manifest).encode()
+        with zipfile.ZipFile(path, 'w') as archive:
+            for name, content in data.items():
+                archive.writestr(name, content)
+        backup.sha256 = hashlib.sha256(path.read_bytes()).hexdigest()
+        backup.size = path.stat().st_size
+        backup.save(update_fields=['sha256', 'size'])
+
+    def test_previous_web_backup_restores_pdf_relations_and_history(self):
+        record_event('catalogue', 'previous.web.event', 'Événement sauvegardé')
+        backup = create_backup()
+        self.rewrite_web_backup(backup, version=1, extra_fields={'ancien_chemin': 'Z:\\Documents\\notice.pdf'})
+        self.assertEqual(verify_backup(backup)['version'], 1)
+        self.product.nom = 'Produit modifié'
+        self.product.save()
+        self.product.documents.clear()
+        restore_backup(backup)
+        self.product.refresh_from_db()
+        self.document.refresh_from_db()
+        self.assertEqual(self.product.nom, 'Produit initial')
+        self.assertEqual(self.product.documents.get().pk, self.document.pk)
+        self.assertEqual(self.product.systemes.get().pk, self.system.pk)
+        self.assertEqual(self.document.dossiers.get().parent_id, self.folder.pk)
+        self.assertEqual(Path(self.document.fichier.path).read_bytes(), self.content)
+        self.assertTrue(ActivityEvent.objects.filter(event='previous.web.event').exists())
+        self.assertFalse(hasattr(self.document, 'ancien_chemin'))
+
+    def test_backup_compatibility_still_rejects_unknown_fields_and_versions(self):
+        cases = [
+            (1, {'unexpected_field': 'invalid'}),
+            (2, {'ancien_chemin': 'not allowed in format 2'}),
+            (1, {'ancien_chemin': {'invalid': 'type'}}),
+            (3, {}),
+        ]
+        for version, fields in cases:
+            with self.subTest(version=version, fields=fields):
+                backup = create_backup()
+                self.rewrite_web_backup(backup, version=version, extra_fields=fields)
+                with self.assertRaises(BackupError):
+                    validate_archive(backup_path(backup))
 
     def test_failed_restore_rolls_back_database_and_removes_only_staged_files(self):
         backup = create_backup()

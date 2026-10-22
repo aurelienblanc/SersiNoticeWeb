@@ -45,15 +45,15 @@ class FolderAdmin(admin.ModelAdmin):
 class DocumentAdmin(admin.ModelAdmin):
     list_display = ['nom', 'type_document', 'indice', 'date_expiration', 'etat_fichier']
     list_filter = ['type_document__type_export', 'type_document', 'date_expiration']
-    search_fields = ['nom', 'nom_fichier', 'indice', 'ancien_chemin']
+    search_fields = ['nom', 'nom_fichier', 'indice']
     filter_horizontal = ['dossiers']
-    readonly_fields = ['nom_fichier', 'ancien_chemin', 'etat_fichier', 'telechargement']
+    readonly_fields = ['nom_fichier', 'etat_fichier', 'telechargement']
     formfield_overrides = {models.FileField: {'widget': forms.FileInput}}
     list_select_related = ['type_document']
     fieldsets = [
         ('Document', {'fields': ['nom', 'type_document', 'indice', 'date_expiration']}),
         ('Fichier et classement', {'fields': ['fichier', 'etat_fichier', 'telechargement', 'dossiers']}),
-        ('Informations complémentaires', {'fields': ['chemin_sharepoint', 'nom_fichier', 'ancien_chemin'], 'classes': ['collapse']}),
+        ('Informations complémentaires', {'fields': ['chemin_sharepoint', 'nom_fichier'], 'classes': ['collapse']}),
     ]
 
     @admin.display(description='État du fichier')

@@ -41,11 +41,11 @@ class SharedAdministrationTests(TestCase):
         self.assertEqual(self.client.get('/admin/').status_code, 302)
         self.assertRedirects(self.connect(), '/admin/')
 
-    def test_wrong_password_and_old_account_sessions_cannot_enter(self):
+    def test_wrong_password_and_standard_account_sessions_cannot_enter(self):
         response = self.client.post('/admin/login/', {'password': 'incorrect'})
         self.assertContains(response, 'Le mot de passe est incorrect.')
         self.assertEqual(self.client.get('/admin/').status_code, 302)
-        user = get_user_model().objects.create_superuser('legacy', password=self.password)
+        user = get_user_model().objects.create_superuser('standard-account', password=self.password)
         self.client.force_login(user)
         self.assertEqual(self.client.get('/admin/').status_code, 302)
         self.assertEqual(self.client.get('/admin/catalogue/marque/add/').status_code, 302)
