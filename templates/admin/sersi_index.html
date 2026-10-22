@@ -1,27 +1,141 @@
-{% extends 'admin/base_site.html' %}
+{% extends "admin/base_site.html" %}
+
 {% block coltype %}colM{% endblock %}
 {% block content_title %}{% endblock %}
-{% block breadcrumbs %}<div class="breadcrumbs">Administration <span>/</span> Tableau de bord</div>{% endblock %}
+{% block breadcrumbs %}
+  <div class="breadcrumbs">Administration <span>/</span> Tableau de bord</div>
+{% endblock %}
 {% block content %}
-<div class="dashboard-heading"><div><span class="eyebrow">ESPACE ADMINISTRATION</span><h1>Votre bibliothèque, à jour<span class="accent">.</span></h1><p>Gérez vos références, classez les documents et préparez les prochains dossiers.</p></div><a class="outline-button" href="{% url 'index' %}">Voir le catalogue ↗</a></div>
-<div class="admin-stats">
-  <a href="{% url 'admin:catalogue_produit_changelist' %}"><span>Produits</span><strong>{{ catalogue_stats.produits }}</strong><small>références au catalogue</small></a>
-  <a href="{% url 'admin:catalogue_document_changelist' %}"><span>Documents</span><strong>{{ catalogue_stats.documents }}</strong><small>fichiers référencés</small></a>
-  <a href="{% url 'admin:catalogue_marque_changelist' %}"><span>Marques</span><strong>{{ catalogue_stats.marques }}</strong><small>fabricants et marques génériques</small></a>
-  <a class="expiry-stat" href="{% url 'admin:catalogue_document_changelist' %}?date_expiration__lt={% now 'Y-m-d' %}"><span>Documents expirés</span><strong>{{ catalogue_stats.expires }}</strong><small>à vérifier ou à remplacer</small></a>
-</div>
-<div class="dashboard-maintenance"><a href="{% url 'admin:maintenance' %}"><strong>Sauvegardes et restauration</strong><span>Protéger le catalogue et ses documents →</span></a><a href="{% url 'admin:maintenance_journal' %}"><strong>Journal d’activité</strong><span>Consulter les opérations et les erreurs →</span></a></div>
-<div class="admin-dashboard-grid"><div>
-  <section class="admin-panel"><div class="panel-heading"><span class="eyebrow">AU QUOTIDIEN</span><h2>Faire évoluer le catalogue</h2></div><div class="quick-actions">
-    <div><span class="action-icon" aria-hidden="true">▦</span><h3>Les produits</h3><p>Ajoutez une référence et associez-lui ses systèmes et ses documents.</p><a class="primary-button" href="{% url 'admin:catalogue_produit_add' %}">+ Ajouter un produit</a><a class="subtle-link" href="{% url 'admin:catalogue_produit_changelist' %}">Parcourir les produits →</a></div>
-    <div><span class="action-icon" aria-hidden="true">▤</span><h3>Les documents</h3><p>Déposez un fichier, choisissez son type et définissez ses dossiers cibles.</p><a class="primary-button" href="{% url 'admin:catalogue_document_add' %}">+ Ajouter un document</a><a class="subtle-link" href="{% url 'admin:catalogue_document_changelist' %}">Parcourir les documents →</a></div>
-  </div></section>
-  <section class="admin-panel organization-panel"><div class="panel-heading"><span class="eyebrow">UNE BASE BIEN ORGANISÉE</span><h2>Réglages de la bibliothèque</h2></div><div class="configuration-links">
-    <a href="{% url 'admin:catalogue_marque_changelist' %}"><strong>Marques et fabricants</strong><span>Les marques proposées dans le catalogue</span><b aria-hidden="true">→</b></a>
-    <a href="{% url 'admin:catalogue_categorie_changelist' %}"><strong>Catégories de produits</strong><span>Une classification adaptée à vos références</span><b aria-hidden="true">→</b></a>
-    <a href="{% url 'admin:catalogue_typedocument_changelist' %}"><strong>Types de documents</strong><span>Notices, certificats et fiches commerciales</span><b aria-hidden="true">→</b></a>
-    <a href="{% url 'admin:catalogue_dossiercible_changelist' %}"><strong>Dossiers cibles</strong><span>Le classement des fichiers dans les ZIP</span><b aria-hidden="true">→</b></a>
-  </div></section>
-</div><section class="admin-panel recent-panel"><div class="panel-heading"><span class="eyebrow">SUIVI DU CATALOGUE</span><h2>Dernières modifications</h2></div><div class="recent-list">{% for entry in recent_changes %}<div><span class="recent-dot" aria-hidden="true"></span><div><strong>{% if entry.is_deletion %}{{ entry.object_repr }}{% else %}<a href="{{ entry.get_admin_url }}">{{ entry.object_repr }}</a>{% endif %}</strong><span>{{ entry.content_type.name|capfirst }} · {% if entry.is_addition %}Ajout{% elif entry.is_deletion %}Suppression{% else %}Modification{% endif %}</span><time>{{ entry.action_time|date:'d/m/Y à H:i' }}</time></div></div>{% empty %}<div class="empty-recent"><strong>Tout commence ici.</strong><p>Les modifications effectuées depuis cette administration apparaîtront dans cet espace.</p></div>{% endfor %}</div><a class="history-link" href="{% url 'admin:catalogue_exportrecord_changelist' %}">Consulter l’historique des exports →</a></section></div>
+  <div class="dashboard-heading">
+    <div>
+      <span class="eyebrow">ESPACE ADMINISTRATION</span>
+      <h1>
+        Votre bibliothèque, à jour<span class="accent">.</span>
+      </h1>
+      <p>Gérez vos références, classez les documents et préparez les prochains dossiers.</p>
+    </div>
+    <a class="outline-button" href="{% url 'index' %}">Voir le catalogue ↗</a>
+  </div>
+  <div class="admin-stats">
+    <a href="{% url 'admin:catalogue_produit_changelist' %}">
+      <span>Produits</span>
+      <strong>{{ catalogue_stats.produits }}</strong>
+      <small>références au catalogue</small>
+    </a>
+    <a href="{% url 'admin:catalogue_document_changelist' %}">
+      <span>Documents</span>
+      <strong>{{ catalogue_stats.documents }}</strong>
+      <small>fichiers référencés</small>
+    </a>
+    <a href="{% url 'admin:catalogue_marque_changelist' %}">
+      <span>Marques</span>
+      <strong>{{ catalogue_stats.marques }}</strong>
+      <small>fabricants et marques génériques</small>
+    </a>
+    <a class="expiry-stat"
+       href="{% url 'admin:catalogue_document_changelist' %}?date_expiration__lt={% now 'Y-m-d' %}">
+      <span>Documents expirés</span>
+      <strong>{{ catalogue_stats.expires }}</strong>
+      <small>à vérifier ou à remplacer</small>
+    </a>
+  </div>
+  <div class="dashboard-maintenance">
+    <a href="{% url 'admin:maintenance' %}">
+      <strong>Sauvegardes et restauration</strong>
+      <span>Protéger le catalogue et ses documents →</span>
+    </a>
+    <a href="{% url 'admin:maintenance_journal' %}">
+      <strong>Journal d’activité</strong>
+      <span>Consulter les opérations et les erreurs →</span>
+    </a>
+  </div>
+  <div class="admin-dashboard-grid">
+    <div>
+      <section class="admin-panel">
+        <div class="panel-heading">
+          <span class="eyebrow">AU QUOTIDIEN</span>
+          <h2>Faire évoluer le catalogue</h2>
+        </div>
+        <div class="quick-actions">
+          <div>
+            <span class="action-icon" aria-hidden="true">▦</span>
+            <h3>Les produits</h3>
+            <p>Ajoutez une référence et associez-lui ses systèmes et ses documents.</p>
+            <a class="primary-button"
+               href="{% url 'admin:catalogue_produit_add' %}">+ Ajouter un produit</a>
+            <a class="subtle-link"
+               href="{% url 'admin:catalogue_produit_changelist' %}">Parcourir les produits →</a>
+          </div>
+          <div>
+            <span class="action-icon" aria-hidden="true">▤</span>
+            <h3>Les documents</h3>
+            <p>Déposez un fichier, choisissez son type et définissez ses dossiers cibles.</p>
+            <a class="primary-button"
+               href="{% url 'admin:catalogue_document_add' %}">+ Ajouter un document</a>
+            <a class="subtle-link"
+               href="{% url 'admin:catalogue_document_changelist' %}">Parcourir les documents →</a>
+          </div>
+        </div>
+      </section>
+      <section class="admin-panel organization-panel">
+        <div class="panel-heading">
+          <span class="eyebrow">UNE BASE BIEN ORGANISÉE</span>
+          <h2>Réglages de la bibliothèque</h2>
+        </div>
+        <div class="configuration-links">
+          <a href="{% url 'admin:catalogue_marque_changelist' %}">
+            <strong>Marques et fabricants</strong>
+            <span>Les marques proposées dans le catalogue</span>
+            <b aria-hidden="true">→</b>
+          </a>
+          <a href="{% url 'admin:catalogue_categorie_changelist' %}">
+            <strong>Catégories de produits</strong>
+            <span>Une classification adaptée à vos références</span>
+            <b aria-hidden="true">→</b>
+          </a>
+          <a href="{% url 'admin:catalogue_typedocument_changelist' %}">
+            <strong>Types de documents</strong>
+            <span>Notices, certificats et fiches commerciales</span>
+            <b aria-hidden="true">→</b>
+          </a>
+          <a href="{% url 'admin:catalogue_dossiercible_changelist' %}">
+            <strong>Dossiers cibles</strong>
+            <span>Le classement des fichiers dans les ZIP</span>
+            <b aria-hidden="true">→</b>
+          </a>
+        </div>
+      </section>
+    </div>
+    <section class="admin-panel recent-panel">
+      <div class="panel-heading">
+        <span class="eyebrow">SUIVI DU CATALOGUE</span>
+        <h2>Dernières modifications</h2>
+      </div>
+      <div class="recent-list">
+        {% for entry in recent_changes %}
+          <div>
+            <span class="recent-dot" aria-hidden="true"></span>
+            <div>
+              <strong>
+                {% if entry.is_deletion %}{{ entry.object_repr }}{% else %}
+                  <a href="{{ entry.get_admin_url }}">{{ entry.object_repr }}</a>
+                {% endif %}
+              </strong>
+              <span>{{ entry.content_type.name|capfirst }} · {% if entry.is_addition %}Ajout{% elif entry.is_deletion %}Suppression{% else %}Modification{% endif %}
+              </span>
+              <time>{{ entry.action_time|date:'d/m/Y à H:i' }}</time>
+            </div>
+          </div>
+        {% empty %}
+          <div class="empty-recent">
+            <strong>Tout commence ici.</strong>
+            <p>Les modifications effectuées depuis cette administration apparaîtront dans cet espace.</p>
+          </div>
+        {% endfor %}
+      </div>
+      <a class="history-link"
+         href="{% url 'admin:catalogue_exportrecord_changelist' %}">Consulter l’historique des exports →</a>
+    </section>
+  </div>
 {% endblock %}
 {% block sidebar %}{% endblock %}
