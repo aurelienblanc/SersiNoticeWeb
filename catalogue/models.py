@@ -53,7 +53,8 @@ class TypeExport(models.Model):
 
 
 class TypeDocument(NomModel):
-    type_export = models.ForeignKey(TypeExport, on_delete=models.PROTECT, null=True, blank=True, verbose_name="type d’export")
+    # Nullable for legacy imports/backups; new admin entries require a group.
+    type_export = models.ForeignKey(TypeExport, on_delete=models.PROTECT, null=True, verbose_name="type d’export")
 
     class Meta(NomModel.Meta):
         abstract = False

@@ -8,10 +8,11 @@ from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.sessions.models import Session
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.test import Client, TestCase, override_settings
+from django.test import Client, RequestFactory, TestCase, override_settings
 from django.utils import timezone
 
 from .models import AdministrationAccess, Marque
+from .admin_access import client_address
 
 
 @override_settings(
@@ -119,6 +120,38 @@ class SharedAdministrationTests(TestCase):
         self.assertTrue(check_password(new, self.access.password_hash))
         self.assertContains(other.post('/admin/login/', {'password': self.password}), 'Le mot de passe est incorrect.')
         self.assertEqual(other.post('/admin/login/', {'password': new}).status_code, 302)
+
+    @override_settings(SERSI_TRUST_PROXY=True)
+    def test_trusted_proxy_keeps_client_login_limits_separate(self):
+        proxy = {'REMOTE_ADDR': '172.20.0.4'}
+        first = {**proxy, 'HTTP_X_REAL_IP': '192.168.1.10'}
+        second = {**proxy, 'HTTP_X_REAL_IP': '192.168.1.11'}
+        for _ in range(5):
+            Client().post('/admin/login/', {'password': 'incorrect'}, **first)
+        self.assertEqual(Client().post('/admin/login/', {'password': self.password}, **first).status_code, 429)
+        self.assertEqual(Client().post('/admin/login/', {'password': self.password}, **second).status_code, 302)
+
+    @override_settings(SERSI_TRUST_PROXY=False)
+    def test_direct_clients_cannot_reset_limits_with_forwarded_headers(self):
+        for index in range(5):
+            Client().post('/admin/login/', {'password': 'incorrect'}, HTTP_X_REAL_IP=f'192.168.1.{index}', HTTP_X_FORWARDED_FOR=f'192.168.2.{index}')
+        self.assertEqual(Client().post('/admin/login/', {'password': self.password}, HTTP_X_REAL_IP='192.168.1.99').status_code, 429)
+
+    @override_settings(SERSI_TRUST_PROXY=True)
+    def test_proxy_address_is_validated_and_normalized(self):
+        factory = RequestFactory()
+        for invalid in ('', 'host.example', '192.168.1.1, 192.168.1.2'):
+            with self.subTest(address=invalid):
+                request = factory.get('/', REMOTE_ADDR='172.20.0.4', HTTP_X_REAL_IP=invalid)
+                self.assertEqual(client_address(request), '172.20.0.4')
+        request = factory.get('/', HTTP_X_REAL_IP='2001:0db8:0:0:0:0:0:1')
+        self.assertEqual(client_address(request), '2001:db8::1')
+
+    def test_admin_requires_export_group_for_new_document_types(self):
+        self.connect()
+        response = self.client.post('/admin/catalogue/typedocument/add/', {'nom': 'Sans groupe', 'type_export': ''})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('type_export', response.context['adminform'].form.errors)
 
     def test_password_change_checks_current_password_strength_and_confirmation(self):
         self.connect()

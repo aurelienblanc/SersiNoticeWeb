@@ -1,42 +1,249 @@
-{% extends 'catalogue/base.html' %}
+{% extends "catalogue/base.html" %}
+
 {% block content %}
-<div class="page-heading"><div><span class="eyebrow">BIBLIOTHÈQUE PRODUITS</span><h1>Préparer un dossier documentaire<span class="accent">.</span></h1><p>Sélectionnez vos produits. Retrouvez leurs documents dans une archive prête à partager.</p></div><div class="heading-icon" aria-hidden="true">▤</div></div>
-<div class="stats"><div><span class="stat-label">Produits actifs</span><strong>{{ nombre_produits }}</strong><span class="stat-caption">dans votre catalogue</span></div><div><span class="stat-label">Documents référencés</span><strong>{{ nombre_documents }}</strong><span class="stat-caption">techniques et commerciaux</span></div><div><span class="stat-label">Marques</span><strong>{{ nombre_marques }}</strong><span class="stat-caption">une bibliothèque commune</span></div><div class="stat-warning"><span class="stat-label">Documents expirés</span><strong>{{ nombre_expires }}</strong><span class="stat-caption">exclus par défaut des dossiers</span></div></div>
-{% if form.errors %}<div class="alert error" role="alert"><strong>La sélection doit être vérifiée.</strong>{{ form.non_field_errors }}{% for field in form %}{% for error in field.errors %}<p>{{ field.label }} : {{ error }}</p>{% endfor %}{% endfor %}</div>{% endif %}
-{% if not nombre_produits %}<div class="alert"><strong>Le catalogue est prêt à être renseigné.</strong><p>Un administrateur peut importer le catalogue de l’application bureau ou ajouter les premiers produits depuis l’administration.</p><a href="{% url 'admin:index' %}">Ouvrir l’administration →</a></div>{% endif %}
-<noscript><div class="alert">La recherche et les filtres visuels nécessitent JavaScript. Vous pouvez sélectionner directement les produits ci-dessous ; les filtres seront vérifiés à la préparation.</div></noscript>
-<form method="post" action="{% url 'preview' %}" id="selection-form">
-{% csrf_token %}
-<div class="workspace">
-<div class="workspace-main">
-  <section class="panel config-panel" aria-labelledby="config-title">
-    <div class="section-heading"><span class="step">01</span><div><h2 id="config-title">Configurer le dossier</h2><p>Choisissez le périmètre et les documents à inclure.</p></div></div>
-    <div class="field-grid"><label for="id_systeme">Système{{ form.systeme }}</label><label for="id_marque">Marque{{ form.marque }}</label></div>
-    <fieldset class="document-types"><legend>Documents à inclure <span class="required">*</span></legend><div class="type-grid">{% for type in types_export %}<label class="type-option"><input type="checkbox" name="types_export" value="{{ type.pk }}" {% if type.pk|stringformat:'s' in selected_types %}checked{% endif %}><span><strong>{{ type.libelle }}</strong><small>Documents associés à vos produits</small></span></label>{% empty %}<p>Aucun type d’export configuré.</p>{% endfor %}</div></fieldset>
-  </section>
-  <section class="panel products-panel" aria-labelledby="products-title">
-    <div class="section-heading"><span class="step">02</span><div><h2 id="products-title">Sélectionner les produits</h2><p>Composez votre sélection, par référence ou par catégorie.</p></div><span class="count-pill" id="visible-count">{{ produits|length }} produits</span></div>
-    <div class="search-row"><label class="search-field"><span class="sr-only">Rechercher un produit</span><span aria-hidden="true">⌕</span><input type="search" id="product-search" placeholder="Rechercher un nom ou une référence…" autocomplete="off"></label><label class="category-filter"><span class="sr-only">Filtrer par catégorie</span><select id="category-filter"><option value="">Toutes les catégories</option>{% for category in categories %}<option value="{{ category.pk }}">{{ category.nom }}</option>{% endfor %}</select></label></div>
-    <div class="selection-toolbar"><label class="check-label"><input type="checkbox" id="select-visible"> Sélectionner les produits affichés</label><button type="button" class="text-button" id="clear-selection">Tout désélectionner</button></div>
-    <div class="product-list">
-    {% regroup produits by categorie as groups %}
-    {% for group in groups %}<div class="product-group" data-group="{{ group.grouper.pk }}"><h3>{{ group.grouper.nom }} <span class="group-count">{{ group.list|length }}</span></h3>{% for product in group.list %}<label class="product-row" data-product data-category="{{ product.categorie_id }}" data-brand="{{ product.marque_id }}" data-generic="{{ product.marque.generique|yesno:'1,0' }}" data-active="{{ product.actif|yesno:'1,0' }}" data-systems="{% for system in product.systemes.all %}{{ system.pk }} {% endfor %}" data-search="{{ product.nom }} {{ product.reference }} {{ product.marque.nom }}"><input type="checkbox" name="produits" value="{{ product.pk }}" {% if product.pk|stringformat:'s' in selected_products %}checked{% endif %}><span class="product-name"><strong>{{ product.reference }}</strong><span><small class="product-label">{{ product.nom }}</small><span class="product-brand">{{ product.marque.nom }}</span>{% if not product.actif %}<span class="inactive-badge">Inactif</span>{% endif %}</span></span><span class="document-count">{{ product.nombre_documents }} doc{{ product.nombre_documents|pluralize }}</span><span class="row-check" aria-hidden="true">✓</span></label>{% endfor %}</div>{% endfor %}
-    <div class="empty-state" id="no-results" hidden><strong>Aucun produit ne correspond.</strong><p>Modifiez les filtres ou votre recherche.</p></div>
+  <div class="page-heading">
+    <div>
+      <span class="eyebrow">BIBLIOTHÈQUE PRODUITS</span>
+      <h1>
+        Préparer un dossier documentaire<span class="accent">.</span>
+      </h1>
+      <p>Sélectionnez vos produits. Retrouvez leurs documents dans une archive prête à partager.</p>
     </div>
-    <div class="inactive-control"><label class="check-label"><input type="checkbox" name="inclure_inactifs" id="include-inactive" {% if form.inclure_inactifs.value %}checked{% endif %}> Afficher et autoriser les produits inactifs</label></div>
-  </section>
-</div>
-<aside class="summary-column">
-  <section class="panel project-panel" aria-labelledby="project-title"><div class="section-heading"><span class="step">03</span><div><h2 id="project-title">Votre dossier</h2></div></div>
-    <label for="id_projet">Nom du projet <span class="optional">facultatif</span><input id="id_projet" name="projet" maxlength="200" value="{{ form.projet.value|default_if_none:'' }}" placeholder="Ex. Rénovation bâtiment A"></label>
-    <label for="id_client">Client <span class="optional">facultatif</span><input id="id_client" name="client" maxlength="200" value="{{ form.client.value|default_if_none:'' }}" placeholder="Nom du client"></label>
-    <div class="summary-total"><span>Produits sélectionnés</span><strong id="selected-count" aria-live="polite">0</strong></div>
-    <div class="download-format"><span class="zip-icon" aria-hidden="true">↓</span><div><strong>Archive ZIP</strong><small>Documents classés par dossier</small></div></div>
-    <button class="button primary full" type="submit" id="prepare-button">Préparer le dossier <span aria-hidden="true">→</span></button><p class="button-caption">Vérifiez le contenu avant de télécharger.</p>
-    <details class="advanced"><summary>Options des documents</summary><label class="check-label"><input type="checkbox" name="inclure_expires" {% if form.inclure_expires.value %}checked{% endif %}> Inclure les documents expirés</label><p>Les documents expirés sont signalés dans le récapitulatif.</p></details>
-  </section>
-  <div class="help-card"><span aria-hidden="true">ⓘ</span><div><strong>Un document manque ?</strong><p>Le récapitulatif vous indique les fichiers indisponibles. Contactez un administrateur pour les ajouter.</p></div></div>
-</aside>
-</div>
+    <div class="heading-icon" aria-hidden="true">▤</div>
+  </div>
+  <div class="stats">
+    <div>
+      <span class="stat-label">Produits actifs</span>
+      <strong>{{ nombre_produits }}</strong>
+      <span class="stat-caption">dans votre catalogue</span>
+    </div>
+    <div>
+      <span class="stat-label">Documents référencés</span>
+      <strong>{{ nombre_documents }}</strong>
+      <span class="stat-caption">techniques et commerciaux</span>
+    </div>
+    <div>
+      <span class="stat-label">Marques</span>
+      <strong>{{ nombre_marques }}</strong>
+      <span class="stat-caption">une bibliothèque commune</span>
+    </div>
+    <div class="stat-warning">
+      <span class="stat-label">Documents expirés</span>
+      <strong>{{ nombre_expires }}</strong>
+      <span class="stat-caption">inclus par défaut dans les dossiers</span>
+    </div>
+  </div>
+  {% if form.errors %}
+    <div class="alert error" role="alert">
+      <strong>La sélection doit être vérifiée.</strong>{{ form.non_field_errors }}{% for field in form %}
+      {% for error in field.errors %}
+        <p>{{ field.label }} : {{ error }}</p>
+      {% endfor %}
+  {% endfor %}
+  </div>
+{% endif %}
+{% if not nombre_produits %}
+  <div class="alert">
+    <strong>Le catalogue est prêt à être renseigné.</strong>
+    <p>Un administrateur peut importer le catalogue de l’application bureau ou ajouter les premiers produits depuis l’administration.</p>
+    <a href="{% url 'admin:index' %}">Ouvrir l’administration →</a>
+  </div>
+{% endif %}
+<noscript>
+  <div class="alert">La recherche et les filtres visuels nécessitent JavaScript. Vous pouvez sélectionner directement les produits ci-dessous ; les filtres seront vérifiés à la préparation.</div>
+</noscript>
+<form method="post" action="{% url 'preview' %}" id="selection-form">
+  {% csrf_token %}
+  <div class="workspace">
+    <div class="workspace-main">
+      <section class="panel config-panel" aria-labelledby="config-title">
+        <div class="section-heading">
+          <span class="step">01</span>
+          <div>
+            <h2 id="config-title">Configurer le dossier</h2>
+            <p>Choisissez le périmètre et les documents à inclure.</p>
+          </div>
+        </div>
+        <div class="field-grid">
+          <label for="id_systeme">Système{{ form.systeme }}</label>
+          <label for="id_marque">Marque{{ form.marque }}</label>
+        </div>
+        <fieldset class="document-types">
+          <legend>
+            Documents à inclure <span class="required">*</span>
+          </legend>
+          <div class="type-grid">
+            {% for type in types_export %}
+              <label class="type-option">
+                <input type="checkbox"
+                       name="types_export"
+                       value="{{ type.pk }}"
+                       {% if type.pk|stringformat:'s' in selected_types %}checked{% endif %}>
+                <span>
+                  <strong>{{ type.libelle }}</strong>
+                </span>
+              </label>
+            {% empty %}
+              <p>Aucun type d’export configuré.</p>
+            {% endfor %}
+          </div>
+        </fieldset>
+      </section>
+      <section class="panel products-panel" aria-labelledby="products-title">
+        <div class="section-heading">
+          <span class="step">02</span>
+          <div>
+            <h2 id="products-title">Sélectionner les produits</h2>
+            <p>Composez votre sélection, par référence ou par catégorie.</p>
+          </div>
+          <span class="count-pill" id="visible-count">{{ produits|length }} produits</span>
+        </div>
+        <div class="search-row">
+          <label class="search-field">
+            <span class="sr-only">Rechercher un produit</span>
+            <svg class="search-icon"
+                 aria-hidden="true"
+                 focusable="false"
+                 viewBox="0 0 24 24"
+                 fill="none"
+                 stroke="currentColor"
+                 stroke-width="1.8"
+                 stroke-linecap="round">
+              <circle cx="10.5" cy="10.5" r="6.5">
+              </circle>
+              <path d="m15.5 15.5 4.5 4.5"></path>
+            </svg>
+            <input type="search"
+                   id="product-search"
+                   placeholder="Rechercher un nom ou une référence…"
+                   autocomplete="off">
+          </label>
+          <label class="category-filter">
+            <span class="sr-only">Filtrer par catégorie</span>
+            <select id="category-filter">
+              <option value="">Toutes les catégories</option>
+              {% for category in categories %}
+                <option value="{{ category.pk }}">{{ category.nom }}</option>
+              {% endfor %}
+            </select>
+          </label>
+        </div>
+        <div class="selection-toolbar">
+          <label class="check-label">
+            <input type="checkbox" id="select-visible">
+            Sélectionner les produits affichés
+          </label>
+          <button type="button"
+                  class="text-button"
+                  id="clear-selection">Tout désélectionner</button>
+        </div>
+        <div class="product-list">
+          {% regroup produits by categorie as groups %}
+          {% for group in groups %}
+            <div class="product-group" data-group="{{ group.grouper.pk }}">
+              <h3>
+                {{ group.grouper.nom }} <span class="group-count">{{ group.list|length }}</span>
+              </h3>
+              {% for product in group.list %}
+                <label class="product-row"
+                       data-product
+                       data-category="{{ product.categorie_id }}"
+                       data-brand="{{ product.marque_id }}"
+                       data-generic="{{ product.marque.generique|yesno:'1,0' }}"
+                       data-active="{{ product.actif|yesno:'1,0' }}"
+                       data-systems="{% for system in product.systemes.all %}{{ system.pk }} {% endfor %}"
+                       data-search="{{ product.nom }} {{ product.reference }} {{ product.marque.nom }}">
+                  <input type="checkbox"
+                         name="produits"
+                         value="{{ product.pk }}"
+                         {% if product.pk|stringformat:'s' in selected_products %}checked{% endif %}>
+                  <span class="product-name">
+                    <strong>{{ product.reference }}</strong>
+                    <span>
+                      <small class="product-label">{{ product.nom }}</small>
+                      <span class="product-brand">{{ product.marque.nom }}</span>
+                      {% if not product.actif %}
+                        <span class="inactive-badge">Inactif</span>
+                      {% endif %}
+                    </span>
+                  </span>
+                  <span class="document-count">{{ product.nombre_documents }} doc{{ product.nombre_documents|pluralize }}</span>
+                  <span class="row-check" aria-hidden="true">✓</span>
+                </label>
+              {% endfor %}
+            </div>
+          {% endfor %}
+          <div class="empty-state" id="no-results" hidden>
+            <strong>Aucun produit ne correspond.</strong>
+            <p>Modifiez les filtres ou votre recherche.</p>
+          </div>
+        </div>
+        <div class="inactive-control">
+          <label class="check-label">
+          <input type="checkbox"
+                 name="inclure_inactifs"
+                 id="include-inactive"
+                 {% if form.inclure_inactifs.value %}checked{% endif %}> Afficher et autoriser les produits inactifs</label>
+        </div>
+      </section>
+    </div>
+    <aside class="summary-column">
+      <section class="panel project-panel" aria-labelledby="project-title">
+        <div class="section-heading">
+          <span class="step">03</span>
+          <div>
+            <h2 id="project-title">Votre dossier</h2>
+          </div>
+        </div>
+        <label for="id_projet">
+          Nom du projet <span class="optional">facultatif</span>
+          <input id="id_projet"
+                 name="projet"
+                 maxlength="200"
+                 value="{{ form.projet.value|default_if_none:'' }}"
+                 placeholder="Ex. Rénovation bâtiment A">
+        </label>
+        <label for="id_client">
+          Client <span class="optional">facultatif</span>
+          <input id="id_client"
+                 name="client"
+                 maxlength="200"
+                 value="{{ form.client.value|default_if_none:'' }}"
+                 placeholder="Nom du client">
+        </label>
+        <div class="summary-total">
+          <span>Produits sélectionnés</span>
+          <strong id="selected-count" aria-live="polite">0</strong>
+        </div>
+        <div class="download-format">
+          <span class="zip-icon" aria-hidden="true">↓</span>
+          <div>
+            <strong>Archive ZIP</strong>
+            <small>Documents classés par dossier</small>
+          </div>
+        </div>
+        <button class="button primary full" type="submit" id="prepare-button">
+          Préparer le dossier <span aria-hidden="true">→</span>
+        </button>
+        <p class="button-caption">Vérifiez le contenu avant de télécharger.</p>
+        <details class="advanced">
+          <summary>Options des documents</summary>
+          <label class="check-label">
+          <input type="checkbox"
+                 id="exclude-expired"
+                 name="exclure_expires"
+                 {% if form.exclure_expires.value %}checked{% endif %}> Exclure les documents expirés</label>
+          <p>Ils sont inclus par défaut et signalés dans le récapitulatif.</p>
+        </details>
+      </section>
+      <div class="help-card">
+        <span aria-hidden="true">ⓘ</span>
+        <div>
+          <strong>Un document manque ?</strong>
+          <p>Le récapitulatif vous indique les fichiers indisponibles. Contactez un administrateur pour les ajouter.</p>
+        </div>
+      </div>
+    </aside>
+  </div>
 </form>
 {% endblock %}

@@ -12,3 +12,7 @@ staticfiles/
 backups/
 output/
 tmp/
+node_modules/
+test-results/
+playwright-report/
+tests/browser/

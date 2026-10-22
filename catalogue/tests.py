@@ -52,7 +52,7 @@ class ExportTests(TestCase):
         self.product.documents.add(doc)
         return doc
 
-    def plan(self, include_expired=False):
+    def plan(self, include_expired=True):
         return build_plan(Produit.objects.filter(pk=self.product.pk), TypeExport.objects.filter(pk=self.export.pk), include_expired)
 
     def selection(self):
@@ -71,7 +71,7 @@ class ExportTests(TestCase):
         plan = build_plan(Produit.objects.all(), TypeExport.objects.all())
         self.assertEqual(len(plan.fichiers), 1)
         archive, filename = create_archive(plan, self.selection())
-        self.assertEqual(filename, 'Chantier.zip')
+        self.assertEqual(filename, 'Exemple - Chantier.zip')
         self.addCleanup(archive.close)
         with zipfile.ZipFile(archive) as contents:
             self.assertEqual(contents.namelist(), ['Notices/ECS/notice.pdf'])
@@ -84,17 +84,80 @@ class ExportTests(TestCase):
         self.assertEqual(len(set(names)), 2)
         self.assertTrue(any('_2.pdf' in name for name in names))
 
-    def test_expired_documents_are_excluded_unless_explicitly_requested(self):
+    def test_tree_preview_matches_zip_paths_with_nested_and_duplicate_files(self):
+        self.doc.dossiers.add(self.folder)
+        self.new_document('Second document', 'NOTICE.pdf')
+        other = Produit.objects.create(reference='REF-02', nom='Second', marque=self.brand, categorie=self.category)
+        other.documents.add(self.doc)
+        preview = self.client.post('/preparer/', {**self.data, 'produits': [self.product.pk, other.pk]})
+        self.assertEqual(preview.status_code, 200)
+        self.assertContains(preview, 'aria-controls="archive-list"')
+        self.assertContains(preview, 'aria-controls="archive-tree"')
+        tree = preview.context['arborescence']
+        self.assertEqual(tree['nombre_fichiers'], 3)
+        self.assertEqual([folder['nom'] for folder in tree['dossiers']], ['Notices'])
+        notices = tree['dossiers'][0]
+        self.assertEqual([folder['nom'] for folder in notices['dossiers']], ['ECS'])
+        paths = {f"Notices/{entry['nom']}" for entry in notices['fichiers']}
+        paths.update(f"Notices/ECS/{entry['nom']}" for entry in notices['dossiers'][0]['fichiers'])
+        self.assertEqual(paths, {'Notices/notice.pdf', 'Notices/ECS/notice.pdf', 'Notices/ECS/NOTICE_2.pdf'})
+        response = self.client.post('/exporter/', {'selection': preview.context['token']})
+        self.assertEqual(response.status_code, 200)
+        with zipfile.ZipFile(io.BytesIO(b''.join(response.streaming_content))) as archive:
+            self.assertEqual(set(archive.namelist()), paths)
+
+    def test_unavailable_files_do_not_create_tree_folders(self):
+        Path(self.doc.fichier.path).unlink()
+        preview = self.client.post('/preparer/', self.data)
+        self.assertEqual(preview.status_code, 200)
+        self.assertEqual(preview.context['arborescence'], {'dossiers': [], 'fichiers': [], 'nombre_fichiers': 0})
+        self.assertContains(preview, 'Aucun fichier disponible.')
+        self.assertNotContains(preview, 'id="archive-view-switch"')
+
+    def test_expired_documents_are_included_unless_exclusion_is_checked(self):
         self.doc.date_expiration = timezone.localdate() - timedelta(days=1)
         self.doc.save()
-        self.assertEqual(len(self.plan().expires), 1)
-        self.assertFalse(self.plan().fichiers)
-        self.assertEqual(len(self.plan(True).fichiers), 1)
+        self.new_document('Document valide', 'valide.pdf')
+        self.assertEqual(len(self.plan().fichiers), 2)
+        for excluded in (False, True):
+            with self.subTest(excluded=excluded):
+                data = {**self.data, 'exclure_expires': 'on'} if excluded else self.data
+                preview = self.client.post('/preparer/', data)
+                self.assertEqual(preview.status_code, 200)
+                if excluded:
+                    self.assertContains(preview, '1 document expiré exclu')
+                else:
+                    self.assertContains(preview, 'Des documents expirés sont inclus')
+                    self.assertContains(preview, 'Expiré le')
+                response = self.client.post('/exporter/', {'selection': preview.context['token']})
+                self.assertEqual(response.status_code, 200)
+                with zipfile.ZipFile(io.BytesIO(b''.join(response.streaming_content))) as archive:
+                    self.assertIn('Notices/ECS/valide.pdf', archive.namelist())
+                    self.assertEqual('Notices/ECS/notice.pdf' in archive.namelist(), not excluded)
+
+    def test_zip_filename_uses_client_and_project_when_provided(self):
+        cases = [
+            ('', '', 'Dossier documentaire.zip'),
+            ('Client', '', 'Client.zip'),
+            ('', 'Projet', 'Projet.zip'),
+            ('Client', 'Projet', 'Client - Projet.zip'),
+            ('  Client  ', '  Projet  ', 'Client - Projet.zip'),
+            ('Client/Agence', 'Projet:Lot', 'Client_Agence - Projet_Lot.zip'),
+        ]
+        for client, project, filename in cases:
+            with self.subTest(client=client, project=project):
+                preview = self.client.post('/preparer/', {**self.data, 'client': client, 'projet': project})
+                self.assertEqual(preview.status_code, 200)
+                self.assertContains(preview, filename)
+                response = self.client.post('/exporter/', {'selection': preview.context['token']})
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response['Content-Disposition'], f'attachment; filename="{filename}"')
+                b''.join(response.streaming_content)
 
     def test_expiration_today_is_still_valid(self):
         self.doc.date_expiration = timezone.localdate()
         self.doc.save()
-        self.assertEqual(len(self.plan().fichiers), 1)
+        self.assertEqual(len(self.plan(False).fichiers), 1)
 
     def test_missing_document_requires_explicit_confirmation(self):
         self.new_document('Document absent')
@@ -146,6 +209,48 @@ class ExportTests(TestCase):
     def test_only_selected_export_type_is_included(self):
         other = TypeExport.objects.create(libelle='Commercial')
         self.assertFalse(build_plan(Produit.objects.all(), TypeExport.objects.filter(pk=other.pk)).fichiers)
+
+    def test_unmapped_legacy_type_is_reported_and_requires_incomplete_confirmation(self):
+        kind = TypeDocument.objects.create(nom='Ancien type sans groupe')
+        document = self.new_document('PDF non classé', 'non-classe.pdf')
+        document.type_document = kind
+        document.save()
+        preview = self.client.post('/preparer/', self.data)
+        self.assertContains(preview, 'PDF non classé')
+        self.assertContains(preview, 'Type de document sans groupe')
+        plan = preview.context['plan']
+        self.assertEqual(len(plan.fichiers), 1)
+        self.assertEqual(len(plan.indisponibles), 1)
+        token = preview.context['token']
+        self.assertEqual(self.client.post('/exporter/', {'selection': token}).status_code, 409)
+        response = self.client.post('/exporter/', {'selection': token, 'accepter_incomplet': 'on'})
+        self.assertEqual(response.status_code, 200)
+        with zipfile.ZipFile(io.BytesIO(b''.join(response.streaming_content))) as archive:
+            self.assertEqual(archive.namelist(), ['Notices/ECS/notice.pdf'])
+        self.assertTrue(ExportRecord.objects.get().incomplet)
+
+    def test_long_pdf_names_keep_extension_in_zip_and_individual_download(self):
+        self.doc.nom_fichier = 'A' * 151 + '.pdf'
+        self.doc.save()
+        expected = 'A' * 146 + '.pdf'
+        plan = self.plan()
+        self.assertEqual(plan.fichiers[0].chemin, f'Notices/ECS/{expected}')
+        output, _ = create_archive(plan, self.selection())
+        with output, zipfile.ZipFile(output) as archive:
+            self.assertEqual(archive.namelist(), [f'Notices/ECS/{expected}'])
+        response = self.client.get(f'/documents/{self.doc.pk}/telecharger/')
+        self.assertEqual(response['Content-Disposition'], f'attachment; filename="{expected}"')
+        b''.join(response.streaming_content)
+
+    def test_long_filename_collisions_preserve_extension_and_limit(self):
+        self.doc.nom_fichier = 'A' * 151 + '.pdf'
+        self.doc.save()
+        other = self.new_document('Second PDF', 'second.pdf')
+        other.nom_fichier = 'A' * 150 + 'B.pdf'
+        other.save()
+        names = [Path(item.chemin).name for item in self.plan().fichiers]
+        self.assertEqual(names, ['A' * 146 + '.pdf', 'A' * 144 + '_2.pdf'])
+        self.assertTrue(all(len(name) == 150 for name in names))
 
     def test_path_traversal_and_folder_cycles_are_rejected(self):
         self.child.chemin_relatif = '../secret'

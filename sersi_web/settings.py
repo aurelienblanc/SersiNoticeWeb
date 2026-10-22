@@ -100,7 +100,8 @@ SESSION_COOKIE_SECURE = TLS_ENABLED
 CSRF_COOKIE_SECURE = TLS_ENABLED
 SECURE_SSL_REDIRECT = TLS_ENABLED
 SECURE_REDIRECT_EXEMPT = [r'^health/$']
-if os.environ.get('SERSI_TRUST_PROXY', '0') == '1':
+SERSI_TRUST_PROXY = os.environ.get('SERSI_TRUST_PROXY', '0') == '1'
+if SERSI_TRUST_PROXY:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_HSTS_SECONDS = 31536000 if TLS_ENABLED else 0
 SECURE_HSTS_INCLUDE_SUBDOMAINS = False
@@ -109,5 +110,8 @@ X_FRAME_OPTIONS = 'DENY'
 LOGGING = {
     'version': 1, 'disable_existing_loggers': False,
     'handlers': {'console': {'class': 'logging.StreamHandler'}, 'journal': {'class': 'catalogue.logging_handlers.JournalErrorHandler', 'level': 'ERROR'}},
-    'loggers': {'django': {'handlers': ['console', 'journal'], 'level': 'INFO'}},
+    'loggers': {
+        'django': {'handlers': ['console', 'journal'], 'level': 'INFO'},
+        'catalogue.maintenance': {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
+    },
 }

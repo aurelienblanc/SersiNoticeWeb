@@ -1,5 +1,7 @@
 import contextlib
+import logging
 import os
+import sys
 from datetime import timedelta
 from pathlib import Path
 
@@ -9,7 +11,10 @@ from django.utils import timezone
 
 from .backups import BackupError, backup_path, create_backup, restore_backup, verify_backup
 from .journal import record_event
+from .logging_handlers import exception_details
 from .models import ActivityEvent, BackupRecord, ExportRecord, MaintenanceJob, MaintenanceSettings
+
+logger = logging.getLogger(__name__)
 
 
 @contextlib.contextmanager
@@ -132,9 +137,12 @@ def run_pending_job():
             job.message = str(error) if isinstance(error, BackupError) else 'Une erreur technique a interrompu l’opération. Les données précédentes sont conservées si la restauration n’a pas abouti.'
             if job.backup and job.kind in ('verify', 'restore'):
                 BackupRecord.objects.filter(pk=job.backup_id).update(verified_at=None)
-            record_event('backups', 'maintenance.failed', job.message, level='ERROR', details={
+            details = {
                 'operation': str(job.pk), 'type_erreur': type(error).__name__,
-            })
+                **exception_details(sys.exc_info()),
+            }
+            record_event('backups', 'maintenance.failed', job.message, level='ERROR', details=details)
+            logger.error('Échec d’une opération de maintenance : %s', details)
         job.finished_at = timezone.now()
         job.save(update_fields=['backup', 'status', 'progress', 'message', 'finished_at'])
         if job.status == 'done' and (job.origin == 'automatic' or job.kind == 'restore'):

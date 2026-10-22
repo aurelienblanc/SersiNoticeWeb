@@ -1,0 +1,2 @@
+-r requirements.lock
+djlint==1.46.4

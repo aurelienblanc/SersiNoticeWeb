@@ -1,0 +1,14 @@
+{
+  "name": "sersi-notices-checks",
+  "private": true,
+  "packageManager": "pnpm@11.25.0",
+  "scripts": {
+    "test:browser": "playwright test",
+    "format": "prettier --write \"static/**/*.css\" \"static/**/*.js\" \"tests/browser/*.js\" playwright.config.js package.json .prettierrc.json",
+    "format:check": "prettier --check \"static/**/*.css\" \"static/**/*.js\" \"tests/browser/*.js\" playwright.config.js package.json .prettierrc.json"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1",
+    "prettier": "3.9.10"
+  }
+}

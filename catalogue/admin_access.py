@@ -1,6 +1,8 @@
 from datetime import timedelta
+from ipaddress import ip_address
 
 from django import forms
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.password_validation import validate_password
@@ -20,10 +22,20 @@ def access_token(access):
     return salted_hmac('sersi-shared-administration', access.password_hash).hexdigest()
 
 
+def client_address(request):
+    """Trust X-Real-IP only when all requests come through our configured proxy."""
+    peer = request.META.get('REMOTE_ADDR', '')
+    address = request.META.get('HTTP_X_REAL_IP', peer) if settings.SERSI_TRUST_PROXY else peer
+    try:
+        return str(ip_address(address))
+    except ValueError:
+        return peer
+
+
 @sensitive_variables('password')
 def verify_password(request, password, access):
-    # Use the socket peer, never an untrusted forwarded header. No raw IP is saved.
-    key = salted_hmac('sersi-administration-attempt', request.META.get('REMOTE_ADDR', '')).hexdigest()
+    # Keep only the keyed digest; never persist the client address itself.
+    key = salted_hmac('sersi-administration-attempt', client_address(request)).hexdigest()
     now = timezone.now()
     with transaction.atomic():
         attempt, _ = AdministrationAttempt.objects.select_for_update().get_or_create(
