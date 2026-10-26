@@ -61,6 +61,7 @@
   flex-direction: column;
   padding: 22px;
   min-width: 0;
+  container-type: inline-size;
 }
 .document-card-top {
   display: flex;
@@ -76,6 +77,13 @@
   border-radius: 4px;
   font-size: 10px;
 }
+.document-version,
+.document-expiration {
+  font-size: 11px;
+  color: var(--muted);
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
 .document-expired {
   background: var(--sersi-gold-soft);
   color: var(--sersi-gold-ink);
@@ -88,10 +96,6 @@
   font-weight: 650;
   line-height: 1.5;
   overflow-wrap: anywhere;
-}
-.document-index {
-  color: var(--muted);
-  font-size: 11px;
 }
 .document-products {
   list-style: none;
@@ -114,12 +118,14 @@
   margin-top: 3px;
 }
 .document-associated-products {
-  margin: 16px 0 8px;
+  grid-column: 1 / -1;
+  grid-row: 1;
+  min-width: 0;
 }
 .document-associated-products summary {
   cursor: pointer;
   list-style: none;
-  min-height: 36px;
+  min-height: 44px;
   padding: 8px 10px;
   gap: 8px;
 }
@@ -133,17 +139,39 @@
   margin: 12px 0 0;
 }
 .document-no-products {
-  margin: 16px 0 8px;
+  grid-column: 1 / -1;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  margin: 0;
   font-size: 11px;
   color: var(--muted);
 }
+.document-card-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  margin-top: 16px;
+}
 .document-card-actions {
+  grid-column: 2;
+  grid-row: 2;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 10px;
   flex-wrap: wrap;
-  margin-top: auto;
-  padding-top: 10px;
+}
+/* Keep the products list full width when the three controls share a row. */
+@container (min-width: 480px) {
+  .document-card-actions {
+    grid-row: 1;
+    align-self: start;
+  }
+  .document-associated-products summary {
+    max-width: calc(100% - 260px);
+  }
 }
 .document-download {
   border: 1px solid var(--line);

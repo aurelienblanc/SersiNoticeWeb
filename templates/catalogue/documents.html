@@ -6,7 +6,7 @@
 {% block page_label %}Consulter les documents{% endblock %}
 {% block extrahead %}
   <link rel="stylesheet"
-        href="{% static 'catalogue/documents.css' %}?v=20261026-3">
+        href="{% static 'catalogue/documents.css' %}?v=20261026-4">
   <script src="{% static 'catalogue/documents.js' %}?v=20261026-1" defer></script>
 {% endblock %}
 {% block content %}
@@ -66,38 +66,49 @@
       <article class="panel document-card{% if not result.available %} document-unavailable{% endif %}">
         <div class="document-card-top">
           <span class="document-kind">{{ result.document.type_document.nom }}</span>
-          {% if result.document.expire %}<span class="document-expired">Expiré le {{ result.document.date_expiration|date:'d/m/Y' }}</span>{% endif %}
+          {% if result.document.indice %}<span class="document-version">Version {{ result.document.indice }}</span>{% endif %}
+          {% if result.document.date_expiration %}
+            <time class="document-expiration{% if result.document.expire %} document-expired{% endif %}"
+                  datetime="{{ result.document.date_expiration|date:'Y-m-d' }}">{% if result.document.expire %}Expiré le{% else %}Expire le{% endif %} {{ result.document.date_expiration|date:'d/m/Y' }}</time>
+          {% endif %}
         </div>
         <h3>{{ result.document.nom }}</h3>
-        {% if result.document.indice %}<p class="document-index">Indice {{ result.document.indice }}</p>{% endif %}
-        {% if result.products %}
-          <details class="document-associated-products">
-            <summary class="icon-link button document-download">
-              {% include "shared/icon.html" with name="package" only %}
-              Produits associés ({{ result.products|length }})
-              {% include "shared/icon.html" with name="arrow-right" icon_class="associated-chevron" only %}
-            </summary>
-            <ul class="document-products">
-              {% for product in result.products %}
-                <li><strong>{{ product.reference }}</strong><span>{{ product.nom }} · {{ product.marque.nom }}{% if not product.actif %} · Inactif{% endif %}</span></li>
-              {% endfor %}
-            </ul>
-          </details>
-        {% else %}
-          <p class="document-no-products">Aucun produit associé</p>
-        {% endif %}
-        <div class="document-card-actions">
-          {% if result.available %}
-            {% if result.can_view %}<a class="icon-link button primary"
-   href="{% url 'view_document' result.document.pk %}"
-   target="_blank"
-   rel="noopener"
-   aria-label="Consulter {{ result.document.nom }} (nouvel onglet)">{% include "shared/icon.html" with name="eye" only %} Consulter</a>{% endif %}
-            <a class="icon-link button document-download"
-               href="{% url 'download_document' result.document.pk %}"
-               aria-label="Télécharger {{ result.document.nom }}">{% include "shared/icon.html" with name="download" only %} Télécharger</a>
-    {% else %}<span class="document-missing">Fichier à déposer</span>{% endif %}
-      </div>
+        <div class="document-card-footer">
+          {% if result.products %}
+            <details class="document-associated-products">
+              <summary class="icon-link button document-download">
+                {% include "shared/icon.html" with name="package" only %}
+                Produits associés ({{ result.products|length }})
+                {% include "shared/icon.html" with name="arrow-right" icon_class="associated-chevron" only %}
+              </summary>
+              <ul class="document-products">
+                {% for product in result.products %}
+                  <li><strong>{{ product.reference }}</strong><span>{{ product.nom }} · {{ product.marque.nom }}{% if not product.actif %} · Inactif{% endif %}</span></li>
+                {% endfor %}
+              </ul>
+            </details>
+          {% else %}
+            <p class="document-no-products">Aucun produit associé</p>
+          {% endif %}
+          <div class="document-card-actions">
+            {% if result.available %}
+              {% if result.can_view %}
+                <a class="icon-link button primary"
+                   href="{% url 'view_document' result.document.pk %}"
+                   target="_blank"
+                   rel="noopener"
+                   aria-label="Consulter {{ result.document.nom }} (nouvel onglet)">
+                  {% include "shared/icon.html" with name="eye" only %} Consulter
+                </a>
+              {% endif %}
+              <a class="icon-link button document-download"
+                 href="{% url 'download_document' result.document.pk %}"
+                 aria-label="Télécharger {{ result.document.nom }}">{% include "shared/icon.html" with name="download" only %} Télécharger</a>
+            {% else %}
+              <span class="document-missing">Fichier à déposer</span>
+            {% endif %}
+          </div>
+        </div>
       </article>
     {% empty %}
       <div class="panel empty-state document-empty">
