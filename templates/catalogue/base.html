@@ -10,8 +10,10 @@
     <title>{% block title %}SERSI Notices · Dossiers documentaires{% endblock %}</title>
     <link rel="icon" href="{% static 'catalogue/sersi-logo.ico' %}">
     <link rel="stylesheet" href="{% static 'sersi/palette.css' %}?v=20261022-1">
-    <link rel="stylesheet" href="{% static 'catalogue/app.css' %}?v=20261022-6">
+    <link rel="stylesheet" href="{% static 'sersi/icons.css' %}?v=20261026-1">
+    <link rel="stylesheet" href="{% static 'catalogue/app.css' %}?v=20261026-2">
     <script src="{% static 'catalogue/app.js' %}?v=20261022-2" defer></script>
+    {% block extrahead %}{% endblock %}
   </head>
   <body>
     <a class="skip" href="#contenu">Aller au contenu</a>
@@ -27,13 +29,10 @@
       </a>
       <div class="nav-label">VOTRE ESPACE</div>
       <nav aria-label="Navigation principale">
-        <a class="nav-item current" href="{% url 'index' %}">
-          <span aria-hidden="true">▤</span> Dossier documentaire <span class="nav-arrow"
-       aria-hidden="true">›</span>
-        </a>
+        {% include "catalogue/public_navigation.html" %}
       </nav>
       <div class="sidebar-note">
-        <span class="note-mark" aria-hidden="true">↗</span>
+        <span class="note-mark">{% include "shared/icon.html" with name="arrow-up-right" only %}</span>
         <strong>La bonne documentation.
           <br>
         Au bon endroit.</strong>
@@ -41,7 +40,7 @@
       </div>
       <div class="sidebar-bottom">
         <a class="nav-item" href="{% url 'admin:index' %}">
-          <span aria-hidden="true">⚙</span> Administration</a>
+        {% include "shared/icon.html" with name="settings" only %} Administration</a>
         <div class="network">
           <i aria-hidden="true">
           </i> Réseau interne · VPN
@@ -58,6 +57,9 @@
         </div>
         <span class="internal-badge">ESPACE COLLABORATEURS</span>
       </header>
+      <nav class="mobile-navigation" aria-label="Navigation principale mobile">
+        {% include "catalogue/public_navigation.html" %}
+      </nav>
       <main id="contenu" class="main">
         {% block content %}{% endblock %}
       </main>

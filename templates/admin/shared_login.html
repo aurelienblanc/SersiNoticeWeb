@@ -29,8 +29,9 @@
     </aside>
     <section class="login-form-panel">
       <div>
-        <a class="login-back" href="{% url 'index' %}">← Retour au catalogue</a>
-        <span class="login-lock" aria-hidden="true">⚿</span>
+        <a class="icon-link login-back"
+           href="{% url 'index' %}">{% include "shared/icon.html" with name="arrow-left" only %} Retour au catalogue</a>
+        <span class="login-lock">{% include "shared/icon.html" with name="key-round" only %}</span>
         <span class="eyebrow">ESPACE ADMINISTRATION</span>
         <h1>Gérer la bibliothèque</h1>
         <p>Saisissez le mot de passe commun pour accéder à la gestion du catalogue.</p>
@@ -44,10 +45,10 @@
           <label for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
           {{ form.password }}
           {{ form.password.errors }}
-          <button class="primary-button"
+          <button class="icon-link primary-button"
                   type="submit"
                   {% if not configured %}disabled{% endif %}>
-            Accéder à l’administration <span aria-hidden="true">→</span>
+            {% include "shared/icon.html" with name="log-in" only %} Accéder à l’administration
           </button>
         </form>
         <div class="login-help">Le catalogue reste accessible à tous les collaborateurs, sans mot de passe.</div>

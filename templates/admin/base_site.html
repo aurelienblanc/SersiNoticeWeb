@@ -6,7 +6,8 @@
 {% block dark-mode-vars %}{% endblock %}
 {% block responsive %}{{ block.super }}<link rel="stylesheet"
       href="{% static 'sersi/palette.css' %}?v=20261022-1">
-  <link rel="stylesheet" href="{% static 'admin/sersi.css' %}?v=20261022-1">
+  <link rel="stylesheet" href="{% static 'sersi/icons.css' %}?v=20261026-1">
+  <link rel="stylesheet" href="{% static 'admin/sersi.css' %}?v=20261026-1">
   <link rel="icon" href="{% static 'catalogue/sersi-logo.ico' %}">
 {% endblock %}
 {% block branding %}
@@ -21,11 +22,14 @@
 {% block usertools %}
   {% if has_permission %}
     <div class="admin-tools">
-      <a href="{% url 'index' %}">↗ Ouvrir le catalogue</a>
-      <a href="{% url 'admin:password_change' %}">Mot de passe commun</a>
+      <a class="icon-link"
+         href="{% url 'index' %}">{% include "shared/icon.html" with name="folder-open" only %} Ouvrir le catalogue</a>
+      <a class="icon-link"
+         href="{% url 'admin:password_change' %}">{% include "shared/icon.html" with name="key-round" only %} Mot de passe commun</a>
       <form method="post" action="{% url 'admin:logout' %}">
         {% csrf_token %}
-        <button type="submit">Déconnexion</button>
+        <button class="icon-link"
+                type="submit">{% include "shared/icon.html" with name="log-out" only %} Déconnexion</button>
       </form>
     </div>
   {% endif %}

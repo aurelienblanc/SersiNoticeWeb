@@ -9,6 +9,9 @@
   --canvas: var(--sersi-canvas);
   --radius: 12px;
 }
+.mobile-navigation {
+  display: none;
+}
 * {
   box-sizing: border-box;
 }
@@ -1073,6 +1076,26 @@ button:disabled {
   }
 }
 @media (max-width: 640px) {
+  .mobile-navigation {
+    display: flex;
+    gap: 8px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--line);
+    background: var(--paper);
+  }
+  .mobile-navigation .nav-item {
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+    border: 1px solid var(--line);
+    color: var(--navy);
+    font-size: 11px;
+    padding: 10px 8px;
+  }
+  .mobile-navigation .nav-item.current {
+    background: var(--sersi-gold-soft);
+    border-color: var(--sersi-gold-border);
+  }
   .sidebar {
     position: static;
     width: auto;

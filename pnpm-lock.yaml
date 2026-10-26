@@ -8,6 +8,9 @@ importers:
 
   .:
     devDependencies:
+      lucide:
+        specifier: 1.8.0
+        version: 1.8.0
       playwright:
         specifier: 1.62.1
         version: 1.62.1
@@ -21,6 +24,9 @@ packages:
     resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
+
+  lucide@1.8.0:
+    resolution: {integrity: sha512-JjV/QnadgFLj1Pyu9IKl0lknrolFEzo04B64QcYLLeRzZl/iEHpdbSrRRKbyXcv45SZNv+WGjIUCT33e7xHO6Q==}
 
   playwright-core@1.62.1:
     resolution: {integrity: sha512-wPYSwEBJY9GHraISXqyqtx0na0LpO3XEX7jNDhntbex7tzUS7kLnZsOlFruFJB4Hi/rhDMjXGqHewDZ68nYZVw==}
@@ -41,6 +47,8 @@ snapshots:
 
   fsevents@2.3.2:
     optional: true
+
+  lucide@1.8.0: {}
 
   playwright-core@1.62.1: {}
 

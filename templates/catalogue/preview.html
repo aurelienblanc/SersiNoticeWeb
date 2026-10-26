@@ -3,7 +3,8 @@
 {% block title %}Vérifier le dossier · SERSI Notices{% endblock %}
 {% block page_label %}Vérifier le dossier{% endblock %}
 {% block content %}
-  <a href="{% url 'index' %}" class="back-link">← Nouvelle sélection</a>
+  <a href="{% url 'index' %}"
+     class="icon-link back-link">{% include "shared/icon.html" with name="arrow-left" only %} Nouvelle sélection</a>
   <div class="page-heading">
     <div>
       <span class="eyebrow">RÉCAPITULATIF</span>
@@ -12,7 +13,7 @@
       </h1>
       <p>Vérifiez les documents et téléchargez votre archive.</p>
     </div>
-    <div class="heading-icon" aria-hidden="true">✓</div>
+    <div class="heading-icon">{% include "shared/icon.html" with name="circle-check" only %}</div>
   </div>
   <div class="workspace preview-workspace">
     <div class="workspace-main">
@@ -53,7 +54,7 @@
       {% endif %}
       <section class="panel archive-panel" aria-labelledby="archive-content-title">
         <div class="section-heading">
-          <span class="step">✓</span>
+          <span class="step">{% include "shared/icon.html" with name="check" only %}</span>
           <div>
             <h2 id="archive-content-title">Contenu de l’archive</h2>
             <p>{{ plan.fichiers|length }} fichier{{ plan.fichiers|length|pluralize }} · {{ plan.taille|filesizeformat }} avant compression</p>
@@ -64,14 +65,16 @@
                  role="group"
                  aria-label="Affichage du contenu"
                  hidden>
-              <button type="button"
+              <button class="icon-link"
+                      type="button"
                       data-archive-view="list"
                       aria-controls="archive-list"
-                      aria-pressed="true">Liste</button>
-              <button type="button"
+                      aria-pressed="true">{% include "shared/icon.html" with name="list" only %} Liste</button>
+              <button class="icon-link"
+                      type="button"
                       data-archive-view="tree"
                       aria-controls="archive-tree"
-                      aria-pressed="false">Arborescence</button>
+                      aria-pressed="false">{% include "shared/icon.html" with name="folder-tree" only %} Arborescence</button>
             </div>
           {% endif %}
         </div>
@@ -118,14 +121,14 @@
             </label>
           {% endif %}
           <button type="submit"
-                  class="button primary full"
-                  {% if not plan.fichiers %}disabled{% endif %}>Télécharger le ZIP <span aria-hidden="true">↓</span>
+                  class="icon-link button primary full"
+                  {% if not plan.fichiers %}disabled{% endif %}>Télécharger le ZIP {% include "shared/icon.html" with name="download" only %}
           </button>
           <p class="button-caption">Les sous-dossiers sont directement à la racine du ZIP.</p>
         </form>
         <button type="button"
-                class="text-button back-selection"
-                id="back-selection">← Modifier ma sélection</button>
+                class="icon-link text-button back-selection"
+                id="back-selection">{% include "shared/icon.html" with name="arrow-left" only %} Modifier ma sélection</button>
       </section>
     </aside>
   </div>

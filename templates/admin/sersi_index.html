@@ -14,7 +14,8 @@
       </h1>
       <p>Gérez vos références, classez les documents et préparez les prochains dossiers.</p>
     </div>
-    <a class="outline-button" href="{% url 'index' %}">Voir le catalogue ↗</a>
+    <a class="icon-link outline-button"
+       href="{% url 'index' %}">{% include "shared/icon.html" with name="eye" only %} Voir le catalogue</a>
   </div>
   <div class="admin-stats">
     <a href="{% url 'admin:catalogue_produit_changelist' %}">
@@ -41,12 +42,12 @@
   </div>
   <div class="dashboard-maintenance">
     <a href="{% url 'admin:maintenance' %}">
-      <strong>Sauvegardes et restauration</strong>
-      <span>Protéger le catalogue et ses documents →</span>
+      <strong>{% include "shared/icon.html" with name="database-backup" only %} Sauvegardes et restauration</strong>
+      <span>Protéger le catalogue et ses documents</span>
     </a>
     <a href="{% url 'admin:maintenance_journal' %}">
-      <strong>Journal d’activité</strong>
-      <span>Consulter les opérations et les erreurs →</span>
+      <strong>{% include "shared/icon.html" with name="scroll-text" only %} Journal d’activité</strong>
+      <span>Consulter les opérations et les erreurs</span>
     </a>
   </div>
   <div class="admin-dashboard-grid">
@@ -58,22 +59,22 @@
         </div>
         <div class="quick-actions">
           <div>
-            <span class="action-icon" aria-hidden="true">▦</span>
+            <span class="action-icon">{% include "shared/icon.html" with name="package" only %}</span>
             <h3>Les produits</h3>
             <p>Ajoutez une référence et associez-lui ses systèmes et ses documents.</p>
-            <a class="primary-button"
-               href="{% url 'admin:catalogue_produit_add' %}">+ Ajouter un produit</a>
-            <a class="subtle-link"
-               href="{% url 'admin:catalogue_produit_changelist' %}">Parcourir les produits →</a>
+            <a class="icon-link primary-button"
+               href="{% url 'admin:catalogue_produit_add' %}">{% include "shared/icon.html" with name="plus" only %} Ajouter un produit</a>
+            <a class="icon-link subtle-link"
+               href="{% url 'admin:catalogue_produit_changelist' %}">{% include "shared/icon.html" with name="package" only %} Parcourir les produits</a>
           </div>
           <div>
-            <span class="action-icon" aria-hidden="true">▤</span>
+            <span class="action-icon">{% include "shared/icon.html" with name="file-text" only %}</span>
             <h3>Les documents</h3>
             <p>Déposez un fichier, choisissez son type et définissez ses dossiers cibles.</p>
-            <a class="primary-button"
-               href="{% url 'admin:catalogue_document_add' %}">+ Ajouter un document</a>
-            <a class="subtle-link"
-               href="{% url 'admin:catalogue_document_changelist' %}">Parcourir les documents →</a>
+            <a class="icon-link primary-button"
+               href="{% url 'admin:catalogue_document_add' %}">{% include "shared/icon.html" with name="file-plus" only %} Ajouter un document</a>
+            <a class="icon-link subtle-link"
+               href="{% url 'admin:catalogue_document_changelist' %}">{% include "shared/icon.html" with name="file-search" only %} Parcourir les documents</a>
           </div>
         </div>
       </section>
@@ -86,22 +87,30 @@
           <a href="{% url 'admin:catalogue_marque_changelist' %}">
             <strong>Marques et fabricants</strong>
             <span>Les marques proposées dans le catalogue</span>
-            <b aria-hidden="true">→</b>
+            <b aria-hidden="true">
+              {% include "shared/icon.html" with name="arrow-right" only %}
+            </b>
           </a>
           <a href="{% url 'admin:catalogue_categorie_changelist' %}">
             <strong>Catégories de produits</strong>
             <span>Une classification adaptée à vos références</span>
-            <b aria-hidden="true">→</b>
+            <b aria-hidden="true">
+              {% include "shared/icon.html" with name="arrow-right" only %}
+            </b>
           </a>
           <a href="{% url 'admin:catalogue_typedocument_changelist' %}">
             <strong>Types de documents</strong>
             <span>Notices, certificats et fiches commerciales</span>
-            <b aria-hidden="true">→</b>
+            <b aria-hidden="true">
+              {% include "shared/icon.html" with name="arrow-right" only %}
+            </b>
           </a>
           <a href="{% url 'admin:catalogue_dossiercible_changelist' %}">
             <strong>Dossiers cibles</strong>
             <span>Le classement des fichiers dans les ZIP</span>
-            <b aria-hidden="true">→</b>
+            <b aria-hidden="true">
+              {% include "shared/icon.html" with name="arrow-right" only %}
+            </b>
           </a>
         </div>
       </section>
@@ -134,7 +143,7 @@
         {% endfor %}
       </div>
       <a class="history-link"
-         href="{% url 'admin:catalogue_exportrecord_changelist' %}">Consulter l’historique des exports →</a>
+         href="{% url 'admin:catalogue_exportrecord_changelist' %}">{% include "shared/icon.html" with name="history" only %} Consulter l’historique des exports</a>
     </section>
   </div>
 {% endblock %}

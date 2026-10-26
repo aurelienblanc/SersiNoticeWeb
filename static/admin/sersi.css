@@ -165,10 +165,9 @@ div.breadcrumbs {
   color: var(--sersi-silver) !important;
   border-left: 3px solid transparent;
 }
-.sersi-nav a span {
-  font-size: 19px;
-  line-height: 1;
+.sersi-nav a > .sersi-icon {
   width: 20px;
+  height: 20px;
 }
 .sersi-nav a:hover {
   background: var(--sersi-nav-active);
@@ -706,16 +705,16 @@ select:focus {
   pointer-events: none;
 }
 .add-related {
-  --sersi-related-icon: url('img/icon-addlink.svg');
+  --sersi-related-icon: url('../icons/lucide/plus.svg');
 }
 .change-related {
-  --sersi-related-icon: url('img/icon-changelink.svg');
+  --sersi-related-icon: url('../icons/lucide/square-pen.svg');
 }
 .delete-related {
-  --sersi-related-icon: url('img/icon-deletelink.svg');
+  --sersi-related-icon: url('../icons/lucide/trash-2.svg');
 }
 .view-related {
-  --sersi-related-icon: url('img/icon-viewlink.svg');
+  --sersi-related-icon: url('../icons/lucide/eye.svg');
 }
 .change-related::after {
   background: var(--sersi-gold-ink);
@@ -1623,4 +1622,68 @@ select:focus {
     width: 100%;
     min-width: 0;
   }
+}
+
+/* Native Django submit inputs keep their original names and behaviour. */
+.submit-row input[name='_save'],
+.submit-row input[name='_addanother'],
+.submit-row input[name='_continue'],
+.submit-row input[name='_saveasnew'] {
+  background-repeat: no-repeat;
+  background-position: 14px center;
+  background-size: 17px 17px;
+  padding-left: 42px;
+}
+.submit-row input[name='_save'] {
+  background-image: url('../icons/lucide/save.svg');
+}
+.submit-row input[name='_addanother'],
+.submit-row input[name='_saveasnew'] {
+  background-image: url('../icons/lucide/file-plus.svg');
+}
+.submit-row input[name='_continue'] {
+  background-image: url('../icons/lucide/square-pen.svg');
+}
+.submit-row a.deletelink {
+  gap: 8px;
+}
+.submit-row a.deletelink::before {
+  content: '';
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+  background: currentColor;
+  mask: url('../icons/lucide/trash-2.svg') center / contain no-repeat;
+}
+.delete-confirmation form input[type='submit'] {
+  background-image: url('../icons/lucide/trash-2-white.svg');
+  background-repeat: no-repeat;
+  background-position: 14px center;
+  background-size: 17px 17px;
+  padding-left: 42px;
+}
+.object-tools a.addlink,
+.object-tools a.historylink,
+.object-tools a.viewsitelink {
+  padding-left: 38px;
+  padding-right: 17px;
+  background-repeat: no-repeat;
+  background-position: 13px center;
+  background-size: 17px 17px;
+}
+.object-tools a.addlink {
+  background-image: url('../icons/lucide/plus.svg');
+}
+.object-tools a.historylink {
+  background-image: url('../icons/lucide/history.svg');
+}
+.object-tools a.viewsitelink {
+  background-image: url('../icons/lucide/eye.svg');
+}
+#toolbar #changelist-search input[type='submit'] {
+  padding-left: 35px;
+  background-image: url('../icons/lucide/search.svg');
+  background-repeat: no-repeat;
+  background-position: 10px center;
+  background-size: 17px 17px;
 }

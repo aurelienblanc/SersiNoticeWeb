@@ -1,0 +1,129 @@
+{% extends "catalogue/base.html" %}
+
+{% load static %}
+
+{% block title %}Consulter les documents · SERSI Notices{% endblock %}
+{% block page_label %}Consulter les documents{% endblock %}
+{% block extrahead %}
+  <link rel="stylesheet"
+        href="{% static 'catalogue/documents.css' %}?v=20261026-5">
+  <script src="{% static 'catalogue/documents.js' %}?v=20261026-1" defer></script>
+{% endblock %}
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <span class="eyebrow">BIBLIOTHÈQUE DOCUMENTAIRE</span>
+      <h1>Trouver un document<span class="accent">.</span></h1>
+      <p>Recherchez par marque, référence produit ou type de document.</p>
+    </div>
+    <div class="heading-icon">{% include "shared/icon.html" with name="file-search" only %}</div>
+  </div>
+  <section class="panel document-search-panel"
+           aria-label="Rechercher des documents">
+    <form method="get"
+          action="{% url 'document_library' %}"
+          id="document-search-form">
+      <div class="document-search-grid">
+        <div class="document-search-field">
+          <label for="id_marque">{{ form.marque.label }}</label>
+          {{ form.marque }}
+        </div>
+        <div class="document-search-field">
+          <label for="id_reference">{{ form.reference.label }}</label>
+          {{ form.reference }}
+        </div>
+        <div class="document-search-field document-type-field">
+          <label for="id_type_document">{{ form.type_document.label }}</label>
+          {{ form.type_document }}
+        </div>
+        <div class="document-search-actions">
+          <button type="submit"
+                  class="icon-link button primary">{% include "shared/icon.html" with name="search" only %} Rechercher</button>
+          <a class="icon-link document-reset"
+             href="{% url 'document_library' %}">{% include "shared/icon.html" with name="rotate-ccw" only %} Réinitialiser</a>
+        </div>
+      </div>
+      <datalist id="document-references">
+        {% for product in reference_suggestions %}
+          <option value="{{ product.reference }}"
+                  label="{{ product.nom }} · {{ product.marque.nom }}"
+                  data-brand="{{ product.marque_id }}"></option>
+        {% endfor %}
+      </datalist>
+      {% if form.errors %}
+        <div class="document-search-errors" role="alert">
+          {% for field in form %}{% for error in field.errors %}<p>{{ field.label }} : {{ error }}</p>{% endfor %}{% endfor %}
+        </div>
+      {% endif %}
+    </form>
+  </section>
+  <div class="document-results-heading">
+    <h2>{{ page.paginator.count }} document{{ page.paginator.count|pluralize }}</h2>
+    {% if page.paginator.num_pages > 1 %}<span>Page {{ page.number }} sur {{ page.paginator.num_pages }}</span>{% endif %}
+  </div>
+  <div class="document-grid">
+    {% for result in results %}
+      <article class="panel document-card{% if not result.available %} document-unavailable{% endif %}">
+        <div class="document-card-top">
+          <span class="document-kind">{{ result.document.type_document.nom }}</span>
+          {% if result.document.indice %}<span class="document-version">Version {{ result.document.indice }}</span>{% endif %}
+          {% if result.document.date_expiration %}
+            <time class="document-expiration{% if result.document.expire %} document-expired{% endif %}"
+                  datetime="{{ result.document.date_expiration|date:'Y-m-d' }}">{% if result.document.expire %}Expiré le{% else %}Expire le{% endif %} {{ result.document.date_expiration|date:'d/m/Y' }}</time>
+          {% endif %}
+        </div>
+        <h3>{{ result.document.nom }}</h3>
+        <div class="document-card-footer">
+          {% if result.products %}
+            <details class="document-associated-products">
+              <summary class="icon-link button document-download">
+                {% include "shared/icon.html" with name="package" only %}
+                Produits associés ({{ result.products|length }})
+                {% include "shared/icon.html" with name="arrow-right" icon_class="associated-chevron" only %}
+              </summary>
+              <ul class="document-products">
+                {% for product in result.products %}
+                  <li><strong>{{ product.reference }}</strong><span>{{ product.nom }} · {{ product.marque.nom }}{% if not product.actif %} · Inactif{% endif %}</span></li>
+                {% endfor %}
+              </ul>
+            </details>
+          {% else %}
+            <p class="document-no-products">Aucun produit associé</p>
+          {% endif %}
+          <div class="document-card-actions">
+            {% if result.available %}
+              {% if result.can_view %}
+                <a class="icon-link button primary"
+                   href="{% url 'view_document' result.document.pk %}"
+                   target="_blank"
+                   rel="noopener"
+                   aria-label="Consulter {{ result.document.nom }} (nouvel onglet)">
+                  {% include "shared/icon.html" with name="eye" only %} Consulter
+                </a>
+              {% endif %}
+              <a class="icon-link button document-download"
+                 href="{% url 'download_document' result.document.pk %}"
+                 aria-label="Télécharger {{ result.document.nom }}">{% include "shared/icon.html" with name="download" only %} Télécharger</a>
+            {% else %}
+              <span class="document-missing">Fichier à déposer</span>
+            {% endif %}
+          </div>
+        </div>
+      </article>
+    {% empty %}
+      <div class="panel empty-state document-empty">
+        <strong>Aucun document trouvé.</strong>
+        <p>Essayez une autre marque ou une partie de la référence produit.</p>
+      </div>
+    {% endfor %}
+  </div>
+  {% if page.has_other_pages %}
+    <nav class="document-pagination" aria-label="Pages des documents">
+      {% if page.has_previous %}<a class="icon-link button document-download"
+   href="?{% if query %}{{ query }}&amp;{% endif %}page={{ page.previous_page_number }}">{% include "shared/icon.html" with name="arrow-left" only %} Précédente</a>{% endif %}
+      <span>Page {{ page.number }} sur {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}<a class="icon-link button document-download"
+   href="?{% if query %}{{ query }}&amp;{% endif %}page={{ page.next_page_number }}">Suivante {% include "shared/icon.html" with name="arrow-right" only %}</a>{% endif %}
+    </nav>
+  {% endif %}
+{% endblock %}

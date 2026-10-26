@@ -16,8 +16,8 @@
         <label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}
       </div>
 {% endfor %}
-<button class="primary-button danger-button" type="submit">{{ button }}</button>
-<a class="subtle-link" href="{% url 'admin:maintenance' %}">Annuler et revenir à la maintenance</a>
+<button class="icon-link primary-button danger-button" type="submit">{% if request.resolver_match.url_name == "maintenance_backup_restore" %}{% include "shared/icon.html" with name="rotate-ccw" only %}{% else %}{% include "shared/icon.html" with name="trash-2" only %}{% endif %} {{ button }}</button>
+<a class="icon-link subtle-link" href="{% url 'admin:maintenance' %}">{% include "shared/icon.html" with name="arrow-left" only %} Annuler et revenir à la maintenance</a>
 </form>
 </section>
 {% endblock %}

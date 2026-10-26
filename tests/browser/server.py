@@ -52,6 +52,7 @@ brands = [Marque.objects.create(nom=name, generique=name == 'Commun') for name i
 categories = [Categorie.objects.create(nom=name) for name in ('Centrales', 'Périphériques', 'Accessoires')]
 group = TypeExport.objects.create(libelle='Documents techniques')
 kind = TypeDocument.objects.create(nom='Notice', type_export=group)
+certificate_kind = TypeDocument.objects.create(nom='Certificat', type_export=group)
 folder = DossierCible.objects.create(nom='Notices', chemin_relatif='Notices')
 child = DossierCible.objects.create(nom='Techniques', chemin_relatif='Techniques', parent=folder)
 fixtures = [
@@ -64,7 +65,8 @@ fixtures = [
 for reference, name, brand, category, compatible, active in fixtures:
     product = Produit.objects.create(reference=reference, nom=name, marque=brands[brand], categorie=categories[category], actif=active)
     product.systemes.set([systems[index] for index in compatible])
-    document = Document.objects.create(nom=f'Notice {reference}', type_document=kind,
+    document = Document.objects.create(nom=f'Notice {reference}',
+        type_document=certificate_kind if reference == 'GEN' else kind,
         date_expiration=timezone.localdate() - timedelta(days=1) if reference == 'BB-4' else None)
     document.fichier.save(f'{reference}.pdf', ContentFile(b'%PDF-1.4\nBrowser test fixture\n'))
     document.dossiers.add(child)

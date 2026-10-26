@@ -1,15 +1,13 @@
-from pathlib import Path
-
 from django.core import signing
 from django.core.exceptions import ValidationError
-from django.db.models import Count, Q
-from django.http import FileResponse, Http404, HttpResponse
-from django.shortcuts import get_object_or_404, render
+from django.db.models import Count
+from django.http import FileResponse, HttpResponse
+from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 
-from .exports import archive_filename, build_archive_tree, build_plan, create_archive, safe_filename
+from .exports import archive_filename, build_archive_tree, build_plan, create_archive
 from .forms import SelectionForm
 from .journal import record_event
 from .models import Categorie, Document, ExportRecord, Marque, Produit, Systeme, TypeExport
@@ -90,23 +88,6 @@ def download_export(request):
         archive.close()
         raise
     return FileResponse(archive, as_attachment=True, filename=filename, content_type='application/zip')
-
-
-@require_GET
-@never_cache
-def download_document(request, pk):
-    document = get_object_or_404(Document, pk=pk)
-    if not document.disponible:
-        raise Http404('Ce document est indisponible.')
-    try:
-        response = FileResponse(document.fichier.open('rb'), as_attachment=True,
-                                filename=safe_filename(document.nom_fichier or document.nom + Path(document.fichier.name).suffix),
-                                content_type='application/octet-stream')
-    except OSError:
-        raise Http404('Ce document est indisponible.')
-    response['X-Content-Type-Options'] = 'nosniff'
-    record_event('exports', 'document.downloaded', f'Téléchargement : {document.nom}', details={'document': document.pk})
-    return response
 
 
 @require_GET

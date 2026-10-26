@@ -9,7 +9,9 @@
       </h1>
       <p>Sélectionnez vos produits. Retrouvez leurs documents dans une archive prête à partager.</p>
     </div>
-    <div class="heading-icon" aria-hidden="true">▤</div>
+    <div class="heading-icon" aria-hidden="true">
+      {% include "shared/icon.html" with name="folder-open" only %}
+    </div>
   </div>
   <div class="stats">
     <div>
@@ -46,7 +48,8 @@
   <div class="alert">
     <strong>Le catalogue est prêt à être renseigné.</strong>
     <p>Un administrateur peut ajouter les premiers produits ou restaurer une sauvegarde depuis l’administration.</p>
-    <a href="{% url 'admin:index' %}">Ouvrir l’administration →</a>
+    <a class="icon-link"
+       href="{% url 'admin:index' %}">{% include "shared/icon.html" with name="settings" only %} Ouvrir l’administration</a>
   </div>
 {% endif %}
 <noscript>
@@ -101,18 +104,7 @@
         <div class="search-row">
           <label class="search-field">
             <span class="sr-only">Rechercher un produit</span>
-            <svg class="search-icon"
-                 aria-hidden="true"
-                 focusable="false"
-                 viewBox="0 0 24 24"
-                 fill="none"
-                 stroke="currentColor"
-                 stroke-width="1.8"
-                 stroke-linecap="round">
-              <circle cx="10.5" cy="10.5" r="6.5">
-              </circle>
-              <path d="m15.5 15.5 4.5 4.5"></path>
-            </svg>
+            {% include "shared/icon.html" with name="search" icon_class="search-icon" only %}
             <input type="search"
                    id="product-search"
                    placeholder="Rechercher un nom ou une référence…"
@@ -133,9 +125,7 @@
             <input type="checkbox" id="select-visible">
             Sélectionner les produits affichés
           </label>
-          <button type="button"
-                  class="text-button"
-                  id="clear-selection">Tout désélectionner</button>
+          <button type="button" class="icon-link text-button" id="clear-selection">{% include "shared/icon.html" with name="list-x" only %} Tout désélectionner</button>
         </div>
         <div class="product-list">
           {% regroup produits by categorie as groups %}
@@ -168,7 +158,7 @@
                     </span>
                   </span>
                   <span class="document-count">{{ product.nombre_documents }} doc{{ product.nombre_documents|pluralize }}</span>
-                  <span class="row-check" aria-hidden="true">✓</span>
+                  <span class="row-check">{% include "shared/icon.html" with name="check" only %}</span>
                 </label>
               {% endfor %}
             </div>
@@ -216,14 +206,16 @@
           <strong id="selected-count" aria-live="polite">0</strong>
         </div>
         <div class="download-format">
-          <span class="zip-icon" aria-hidden="true">↓</span>
+          <span class="zip-icon">{% include "shared/icon.html" with name="archive" only %}</span>
           <div>
             <strong>Archive ZIP</strong>
             <small>Documents classés par dossier</small>
           </div>
         </div>
-        <button class="button primary full" type="submit" id="prepare-button">
-          Préparer le dossier <span aria-hidden="true">→</span>
+        <button class="icon-link button primary full"
+                type="submit"
+                id="prepare-button">
+          Préparer le dossier {% include "shared/icon.html" with name="archive" only %}
         </button>
         <p class="button-caption">Vérifiez le contenu avant de télécharger.</p>
         <details class="advanced">
@@ -237,7 +229,7 @@
         </details>
       </section>
       <div class="help-card">
-        <span aria-hidden="true">ⓘ</span>
+        {% include "shared/icon.html" with name="info" only %}
         <div>
           <strong>Un document manque ?</strong>
           <p>Le récapitulatif vous indique les fichiers indisponibles. Contactez un administrateur pour les ajouter.</p>

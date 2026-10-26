@@ -21,8 +21,10 @@
         <label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}
       </div>
 {% endfor %}
-<button class="primary-button" type="submit">Filtrer</button>
-<a href="{% url 'admin:maintenance_journal' %}">Réinitialiser</a>
+<button class="icon-link primary-button"
+        type="submit">{% include "shared/icon.html" with name="filter" only %} Filtrer</button>
+<a class="icon-link"
+   href="{% url 'admin:maintenance_journal' %}">{% include "shared/icon.html" with name="rotate-ccw" only %} Réinitialiser</a>
 </form>
 </section>
 <section class="admin-panel maintenance-section">
@@ -31,8 +33,8 @@
       <span class="eyebrow">{{ event_count }} ÉVÉNEMENT{{ event_count|pluralize }}</span>
       <h2>Événements enregistrés</h2>
     </div>
-    <a class="outline-button"
-       href="{% url 'admin:maintenance_journal_export' %}?{{ query }}">Exporter en CSV ↓</a>
+    <a class="icon-link outline-button"
+       href="{% url 'admin:maintenance_journal_export' %}?{{ query }}">{% include "shared/icon.html" with name="download" only %} Exporter en CSV</a>
   </div>
   <div class="maintenance-table">
     <table>
@@ -77,11 +79,13 @@
   {% if events.has_other_pages %}
     <div class="maintenance-pagination">
       {% if events.has_previous %}
-        <a href="?{{ query }}&page={{ events.previous_page_number }}">← Précédent</a>
+        <a class="icon-link"
+           href="?{{ query }}&page={{ events.previous_page_number }}">{% include "shared/icon.html" with name="arrow-left" only %} Précédent</a>
       {% endif %}
       <span>Page {{ events.number }} / {{ events.paginator.num_pages }}</span>
       {% if events.has_next %}
-        <a href="?{{ query }}&page={{ events.next_page_number }}">Suivant →</a>
+        <a class="icon-link"
+           href="?{{ query }}&page={{ events.next_page_number }}">Suivant {% include "shared/icon.html" with name="arrow-right" only %}</a>
       {% endif %}
     </div>
   {% endif %}
