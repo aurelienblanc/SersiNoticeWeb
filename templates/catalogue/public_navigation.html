@@ -1,0 +1,14 @@
+{% with current_page=request.resolver_match.url_name %}
+  <a class="nav-item{% if current_page != 'document_library' %} current{% endif %}"
+     href="{% url 'index' %}"
+     {% if current_page != 'document_library' %}aria-current="page"{% endif %}>
+    <span aria-hidden="true">▤</span>
+    <span>Dossier documentaire</span>
+  </a>
+  <a class="nav-item{% if current_page == 'document_library' %} current{% endif %}"
+     href="{% url 'document_library' %}"
+     {% if current_page == 'document_library' %}aria-current="page"{% endif %}>
+    <span aria-hidden="true">▦</span>
+    <span>Documents</span>
+  </a>
+{% endwith %}

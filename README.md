@@ -10,6 +10,7 @@ La [notice détaillée de déploiement en production](docs/NOTICE_DEPLOIEMENT_PR
 
 ## Fonctionnement
 
+- Page **Documents** pour retrouver une notice par marque et référence produit, avec suggestions de références, résultats paginés, consultation des PDF dans un nouvel onglet et téléchargement individuel. Les références inactives et documents expirés restent consultables et sont signalés. Les documents partagés ne sont affichés qu’une fois ; les filtres de marque et référence s’appliquent au même produit. La page est accessible sans connexion et ses filtres sont partageables dans l’URL (`/documents/`).
 - Catalogue commun, recherche par nom/référence, filtres par système, marque et catégorie. La liste des marques dépend du système choisi ; les catégories dépendent du système et de la marque. Les choix devenus incompatibles sont réinitialisés. Les marques génériques restent proposées avec la marque choisie.
 - Sélection multiple, produits inactifs sur demande, nom de projet et client facultatifs.
 - Prévisualisation des fichiers, téléchargement individuel et archive ZIP avec les dossiers cibles directement à la racine. Les noms de documents identiques sont conservés avec un suffixe.

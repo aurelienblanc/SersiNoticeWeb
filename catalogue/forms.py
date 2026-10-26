@@ -4,6 +4,20 @@ from django.db.models import Q
 from .models import Marque, Produit, Systeme, TypeExport
 
 
+class DocumentSearchForm(forms.Form):
+    marque = forms.ModelChoiceField(
+        Marque.objects.all(), required=False, empty_label='Toutes les marques', label='Marque',
+    )
+    reference = forms.CharField(
+        max_length=255, required=False, label='Référence produit',
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Ex. IQ8Control M',
+            'list': 'document-references',
+            'autocomplete': 'off',
+        }),
+    )
+
+
 class SelectionForm(forms.Form):
     systeme = forms.ModelChoiceField(Systeme.objects.all(), required=False, empty_label='Tous les systèmes')
     marque = forms.ModelChoiceField(Marque.objects.all(), required=False, empty_label='Toutes les marques')
