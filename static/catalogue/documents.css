@@ -70,26 +70,20 @@
   flex-wrap: wrap;
   margin-bottom: 12px;
 }
-.document-kind {
+.document-kind,
+.document-version,
+.document-expiration {
   background: var(--sersi-blue-soft);
   color: var(--sersi-navy);
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 10px;
-}
-.document-version,
-.document-expiration {
-  font-size: 11px;
-  color: var(--muted);
   max-width: 100%;
   overflow-wrap: anywhere;
 }
 .document-expired {
-  background: var(--sersi-gold-soft);
-  color: var(--sersi-gold-ink);
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 10px;
+  background: var(--sersi-burgundy);
+  color: var(--sersi-white);
 }
 .document-card h3 {
   font-size: 16px;
