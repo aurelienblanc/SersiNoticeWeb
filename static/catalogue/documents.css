@@ -3,7 +3,7 @@
 }
 .document-search-grid {
   display: grid;
-  grid-template-columns: minmax(150px, 1fr) minmax(200px, 1.5fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1.2fr);
   gap: 18px;
   align-items: end;
 }
@@ -23,6 +23,7 @@
   font-weight: 400;
 }
 .document-search-actions {
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -165,7 +166,7 @@
   .document-search-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .document-search-actions {
+  .document-type-field {
     grid-column: 1 / -1;
   }
   .document-grid {

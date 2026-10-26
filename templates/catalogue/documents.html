@@ -6,7 +6,7 @@
 {% block page_label %}Consulter les documents{% endblock %}
 {% block extrahead %}
   <link rel="stylesheet"
-        href="{% static 'catalogue/documents.css' %}?v=20261026-1">
+        href="{% static 'catalogue/documents.css' %}?v=20261026-2">
   <script src="{% static 'catalogue/documents.js' %}?v=20261026-1" defer></script>
 {% endblock %}
 {% block content %}
@@ -14,7 +14,7 @@
     <div>
       <span class="eyebrow">BIBLIOTHÈQUE DOCUMENTAIRE</span>
       <h1>Trouver un document<span class="accent">.</span></h1>
-      <p>Recherchez une marque ou une référence produit et ouvrez votre document.</p>
+      <p>Recherchez par marque, référence produit ou type de document.</p>
     </div>
     <div class="heading-icon">{% include "shared/icon.html" with name="file-search" only %}</div>
   </div>
@@ -31,6 +31,10 @@
         <div class="document-search-field">
           <label for="id_reference">{{ form.reference.label }}</label>
           {{ form.reference }}
+        </div>
+        <div class="document-search-field document-type-field">
+          <label for="id_type_document">{{ form.type_document.label }}</label>
+          {{ form.type_document }}
         </div>
         <div class="document-search-actions">
           <button type="submit"

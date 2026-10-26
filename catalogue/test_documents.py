@@ -79,8 +79,30 @@ class DocumentLibraryTests(TestCase):
         self.assertNotContains(response, f'/documents/{self.alpha_doc.pk}/consulter/')
         self.assertNotContains(response, f'/documents/{self.alpha_doc.pk}/telecharger/')
 
+    def test_document_type_filter_works_alone_and_with_brand_and_reference(self):
+        certificate = TypeDocument.objects.create(nom='Certificat', type_export=self.kind.type_export)
+        self.shared_doc.type_document = certificate
+        self.shared_doc.save(update_fields=['type_document'])
+        unlinked = self.document('Certificat sans produit', [], 'certificat.pdf')
+        unlinked.type_document = certificate
+        unlinked.save(update_fields=['type_document'])
+        response = self.client.get('/documents/', {'type_document': certificate.pk})
+        self.assertCountEqual(self.result_ids(response), [self.shared_doc.pk, unlinked.pk])
+        query = {'marque': self.brand.pk, 'reference': 'a-1', 'type_document': certificate.pk}
+        response = self.client.get('/documents/', query)
+        self.assertEqual(self.result_ids(response), [self.shared_doc.pk])
+        self.assertEqual([product.pk for product in response.context['results'][0]['products']], [self.alpha.pk])
+        self.assertEqual(str(response.context['form']['type_document'].value()), str(certificate.pk))
+        response = self.client.get('/documents/', {**query, 'type_document': self.kind.pk})
+        self.assertEqual(self.result_ids(response), [self.alpha_doc.pk])
+        response = self.client.get('/documents/', {'type_document': ''})
+        self.assertEqual(len(self.result_ids(response)), 5)
+
     def test_invalid_filters_are_rejected_with_a_readable_form(self):
-        for query in ({'marque': 'invalid'}, {'marque': 999999}, {'reference': 'A' * 256}):
+        for query in (
+            {'marque': 'invalid'}, {'marque': 999999}, {'reference': 'A' * 256},
+            {'type_document': 'invalid'}, {'type_document': 999999},
+        ):
             with self.subTest(query=query):
                 response = self.client.get('/documents/', query)
                 self.assertEqual(response.status_code, 400)
@@ -89,11 +111,11 @@ class DocumentLibraryTests(TestCase):
 
     @patch('catalogue.document_views.PAGE_SIZE', 2)
     def test_pagination_retains_filters_and_handles_invalid_page_numbers(self):
-        query = {'marque': self.brand.pk, 'reference': 'A'}
+        query = {'marque': self.brand.pk, 'reference': 'A', 'type_document': self.kind.pk}
         response = self.client.get('/documents/', query)
         self.assertEqual(response.context['page'].paginator.count, 3)
         self.assertEqual(len(self.result_ids(response)), 2)
-        self.assertContains(response, f'marque={self.brand.pk}&amp;reference=A&amp;page=2')
+        self.assertContains(response, f'marque={self.brand.pk}&amp;reference=A&amp;type_document={self.kind.pk}&amp;page=2')
         response = self.client.get('/documents/', {**query, 'page': 999})
         self.assertEqual(response.context['page'].number, 2)
         self.assertEqual(len(self.result_ids(response)), 1)

@@ -1,7 +1,7 @@
 from django import forms
 from django.db.models import Q
 
-from .models import Marque, Produit, Systeme, TypeExport
+from .models import Marque, Produit, Systeme, TypeDocument, TypeExport
 
 
 class DocumentSearchForm(forms.Form):
@@ -15,6 +15,10 @@ class DocumentSearchForm(forms.Form):
             'list': 'document-references',
             'autocomplete': 'off',
         }),
+    )
+    type_document = forms.ModelChoiceField(
+        TypeDocument.objects.all(), required=False,
+        empty_label='Tous les types de documents', label='Type de document',
     )
 
 

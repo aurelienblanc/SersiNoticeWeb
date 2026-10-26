@@ -25,6 +25,8 @@ def document_library(request):
     valid = form.is_valid()
     if valid:
         brand, reference = form.cleaned_data['marque'], form.cleaned_data['reference']
+        if form.cleaned_data['type_document']:
+            documents = documents.filter(type_document=form.cleaned_data['type_document'])
         if brand:
             products = products.filter(marque=brand)
         if reference:

@@ -47,6 +47,30 @@ test('la consultation PDF est servie dans le navigateur et le téléchargement r
   await expect(page).toHaveURL(/\/documents\/\?reference=AA-4/);
 });
 
+test('le type de document limite les résultats et se combine aux autres filtres', async ({
+  page,
+}) => {
+  await page.goto('/documents/');
+  const kind = page.getByLabel('Type de document', { exact: true });
+  await kind.selectOption({ label: 'Certificat' });
+  await page.getByRole('button', { name: 'Rechercher', exact: true }).click();
+  await expect(page.locator('.document-card')).toHaveCount(1);
+  await expect(page.locator('.document-kind')).toHaveText('Certificat');
+  await expect(page.locator('.document-card h3')).toHaveText('Notice GEN');
+  await expect(kind.locator('option:checked')).toHaveText('Certificat');
+  await expect(page).toHaveURL(/type_document=\d+/);
+  await page.getByLabel('Marque', { exact: true }).selectOption({ label: 'Marque A' });
+  await page.getByLabel('Référence produit', { exact: true }).fill('AA-4');
+  await page.getByRole('button', { name: 'Rechercher', exact: true }).click();
+  await expect(page.getByText('Aucun document trouvé.', { exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Réinitialiser', exact: true }).click();
+  await expect(kind).toHaveValue('');
+  await expect(page.locator('.document-card')).toHaveCount(5);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+});
+
 test('la recherche signale les expirations et permet de réinitialiser une recherche vide', async ({
   page,
 }) => {
