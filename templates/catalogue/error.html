@@ -10,5 +10,6 @@
     </div>
   </div>
   <div class="alert error" role="alert">{{ message }}</div>
-  <a class="button primary" href="{% url 'index' %}">Revenir au catalogue</a>
+  <a class="icon-link button primary"
+     href="{% url 'index' %}">{% include "shared/icon.html" with name="arrow-left" only %} Revenir au catalogue</a>
 {% endblock %}

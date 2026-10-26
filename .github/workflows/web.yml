@@ -23,6 +23,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Formatage CSS et JavaScript
         run: pnpm run format:check
+      - name: Ressources SVG Lucide
+        run: pnpm run icons:check
       - name: Formatage des templates Django
         run: python -m djlint templates --check
       - run: pnpm exec playwright install --with-deps chromium

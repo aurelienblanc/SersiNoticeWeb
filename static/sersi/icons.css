@@ -1,0 +1,59 @@
+.sersi-icon {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  vertical-align: middle;
+}
+.icon-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.button > .sersi-icon,
+.primary-button > .sersi-icon,
+.outline-button > .sersi-icon,
+.text-button > .sersi-icon {
+  width: 16px;
+  height: 16px;
+}
+.heading-icon > .sersi-icon {
+  display: block;
+  width: 30px;
+  height: 30px;
+}
+.action-icon > .sersi-icon {
+  display: block;
+  width: 25px;
+  height: 25px;
+}
+.login-lock > .sersi-icon {
+  width: 30px;
+  height: 30px;
+}
+.note-mark > .sersi-icon {
+  width: 22px;
+  height: 22px;
+}
+.file-symbol {
+  display: inline-flex;
+  align-items: center;
+}
+.file-symbol > .sersi-icon {
+  width: 22px;
+  height: 22px;
+}
+.file-download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  min-height: 40px;
+}
+.search-icon.sersi-icon {
+  width: 18px;
+  height: 18px;
+}
+.help-card > .sersi-icon {
+  color: var(--sersi-navy);
+}

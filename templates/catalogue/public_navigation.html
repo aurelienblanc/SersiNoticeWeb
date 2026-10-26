@@ -2,13 +2,13 @@
   <a class="nav-item{% if current_page != 'document_library' %} current{% endif %}"
      href="{% url 'index' %}"
      {% if current_page != 'document_library' %}aria-current="page"{% endif %}>
-    <span aria-hidden="true">▤</span>
+    {% include "shared/icon.html" with name="folder-open" only %}
     <span>Dossier documentaire</span>
   </a>
   <a class="nav-item{% if current_page == 'document_library' %} current{% endif %}"
      href="{% url 'document_library' %}"
      {% if current_page == 'document_library' %}aria-current="page"{% endif %}>
-    <span aria-hidden="true">▦</span>
+    {% include "shared/icon.html" with name="file-search" only %}
     <span>Documents</span>
   </a>
 {% endwith %}

@@ -38,7 +38,7 @@
       </div>
       <form method="post" action="{% url 'admin:maintenance_backup_create' %}">
         {% csrf_token %}
-        <button class="primary-button" type="submit">+ Créer une sauvegarde</button>
+        <button class="icon-link primary-button" type="submit">{% include "shared/icon.html" with name="database-backup" only %} Créer une sauvegarde</button>
       </form>
     </div>
     <p class="maintenance-description">Chaque archive contient le catalogue, les fichiers documentaires et les historiques. Son intégrité est contrôlée avant sa mise à disposition.</p>
@@ -76,17 +76,19 @@
               </td>
               <td>
                 <div class="backup-actions">
-                  <a href="{% url 'admin:maintenance_backup_download' backup.pk %}">Télécharger</a>
+                  <a class="icon-link"
+                     href="{% url 'admin:maintenance_backup_download' backup.pk %}">{% include "shared/icon.html" with name="download" only %} Télécharger</a>
                   <form method="post"
                         action="{% url 'admin:maintenance_backup_verify' backup.pk %}">
                     {% csrf_token %}
-                    <button type="submit">Vérifier</button>
+                    <button class="icon-link" type="submit">{% include "shared/icon.html" with name="shield-check" only %} Vérifier</button>
                   </form>
                   {% if backup.verified_at %}
-                    <a href="{% url 'admin:maintenance_backup_restore' backup.pk %}">Restaurer</a>
+                    <a class="icon-link"
+                       href="{% url 'admin:maintenance_backup_restore' backup.pk %}">{% include "shared/icon.html" with name="rotate-ccw" only %} Restaurer</a>
                   {% endif %}
-                  <a class="danger-link"
-                     href="{% url 'admin:maintenance_backup_delete' backup.pk %}">Supprimer</a>
+                  <a class="icon-link danger-link"
+                     href="{% url 'admin:maintenance_backup_delete' backup.pk %}">{% include "shared/icon.html" with name="trash-2" only %} Supprimer</a>
                 </div>
               </td>
             </tr>
@@ -101,11 +103,13 @@
     {% if backups.has_other_pages %}
       <div class="maintenance-pagination">
         {% if backups.has_previous %}
-          <a href="?page={{ backups.previous_page_number }}">← Précédent</a>
+          <a class="icon-link"
+             href="?page={{ backups.previous_page_number }}">{% include "shared/icon.html" with name="arrow-left" only %} Précédent</a>
         {% endif %}
         <span>Page {{ backups.number }} / {{ backups.paginator.num_pages }}</span>
         {% if backups.has_next %}
-          <a href="?page={{ backups.next_page_number }}">Suivant →</a>
+          <a class="icon-link"
+             href="?page={{ backups.next_page_number }}">Suivant {% include "shared/icon.html" with name="arrow-right" only %}</a>
         {% endif %}
       </div>
     {% endif %}
@@ -119,7 +123,8 @@
         <span class="eyebrow">OPÉRATIONS EN ARRIÈRE-PLAN</span>
         <h2>Suivi des opérations</h2>
       </div>
-      <a class="outline-button" href="{% url 'admin:maintenance' %}">Actualiser</a>
+      <a class="icon-link outline-button"
+         href="{% url 'admin:maintenance' %}">{% include "shared/icon.html" with name="refresh-cw" only %} Actualiser</a>
     </div>
     <div id="jobs-finished" class="maintenance-notice" hidden>Une opération vient de se terminer. <a href="{% url 'admin:maintenance' %}">Actualisez la liste des sauvegardes.</a>
     </div>
@@ -160,7 +165,7 @@
           </div>
         {% endfor %}
         <p>Heure de Paris. Seules les sauvegardes automatiques suivent la limite choisie ; les copies manuelles et importées restent conservées. Les trois dernières sauvegardes de protection sont conservées séparément.</p>
-        <button class="primary-button" type="submit">Enregistrer les réglages</button>
+        <button class="icon-link primary-button" type="submit">{% include "shared/icon.html" with name="save" only %} Enregistrer les réglages</button>
       </form>
     </section>
     <section class="admin-panel maintenance-section">
@@ -175,7 +180,7 @@
         {% csrf_token %}
         <label for="{{ upload_form.archive.id_for_label }}">{{ upload_form.archive.label }}</label>{{ upload_form.archive }}
         <p>Archive ZIP créée par cette application, jusqu’à {{ upload_max_gb }} Go. L’import lance sa vérification sans remplacer les données actuelles. La restauration fait l’objet d’une confirmation séparée.</p>
-        <button class="outline-button" type="submit">Importer et vérifier</button>
+        <button class="icon-link outline-button" type="submit">{% include "shared/icon.html" with name="upload" only %} Importer et vérifier</button>
       </form>
       <div class="storage-note">
         <strong>Stockage des sauvegardes</strong>

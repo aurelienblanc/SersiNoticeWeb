@@ -1,5 +1,5 @@
 <div class="file-row">
-  <span class="file-symbol" aria-hidden="true">▤</span>
+  <span class="file-symbol">{% include "shared/icon.html" with name="file-text" only %}</span>
   <div>
     <strong {% if nom_fichier %} title="{{ file.chemin }}"{% endif %}>{{ nom_fichier|default:file.document.nom }}</strong>
     {% if afficher_chemin %}
@@ -11,5 +11,7 @@
   </div>
   <a href="{% url 'download_document' file.document.pk %}"
      class="file-download"
-     aria-label="Télécharger {{ file.document.nom }}">↓</a>
+     aria-label="Télécharger {{ file.document.nom }}">
+    {% include "shared/icon.html" with name="download" only %}
+  </a>
 </div>

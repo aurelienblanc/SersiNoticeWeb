@@ -23,6 +23,10 @@ Le navigateur télécharge une archive ZIP à extraire sur le poste utilisateur.
 
 ## Architecture retenue
 
+Les icônes personnalisées utilisent [Lucide](https://lucide.dev/guide/static), version 1.8.0 : un ensemble sélectionné de SVG est généré dans `static/icons/lucide/` et servi par l’application. Aucun script, CDN ou police d’icônes distante n’est chargé par les navigateurs. Le composant `templates/shared/icon.html` fournit les icônes décoratives ; les libellés et noms accessibles des boutons sont conservés. La licence ISC et les mentions MIT des icônes issues de Feather sont incluses dans `static/icons/lucide/LICENSE`. Les boutons natifs Django gardent leur fonctionnement et reçoivent leurs icônes par CSS.
+
+Après modification de la sélection dans `tools/build-icons.cjs`, lancer `pnpm run icons:build` et versionner les SVG générés. `pnpm run icons:check` vérifie leur cohérence avec la dépendance verrouillée ; la CI effectue ce contrôle. Lucide est une dépendance de développement uniquement, sans ajout de JavaScript à l’application en production.
+
 Python 3.12 + Django 5.2 LTS, interface HTML/CSS/JavaScript en français, PostgreSQL en déploiement et SQLite pour les essais locaux. Django fournit l’administration, les sessions, la validation et la protection CSRF. Gunicorn exécute l’application derrière Nginx. Docker Compose assure le lancement sur une machine disposant d’un moteur de conteneurs Linux.
 
 ```text

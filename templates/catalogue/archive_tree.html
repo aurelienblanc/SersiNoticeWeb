@@ -3,16 +3,7 @@
     <li class="tree-folder">
       <details open>
         <summary>
-          <svg class="folder-icon"
-               aria-hidden="true"
-               focusable="false"
-               viewBox="0 0 24 24"
-               fill="none"
-               stroke="currentColor"
-               stroke-width="1.8"
-               stroke-linejoin="round">
-            <path d="M3 6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z"></path>
-          </svg>
+          {% include "shared/icon.html" with name="folder-open" icon_class="folder-icon" only %}
           <span class="folder-name">{{ folder.nom }}</span>
           <span class="folder-count">{{ folder.nombre_fichiers }} fichier{{ folder.nombre_fichiers|pluralize }}</span>
         </summary>

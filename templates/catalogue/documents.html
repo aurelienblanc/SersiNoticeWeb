@@ -16,7 +16,7 @@
       <h1>Trouver un document<span class="accent">.</span></h1>
       <p>Recherchez une marque ou une référence produit et ouvrez votre document.</p>
     </div>
-    <div class="heading-icon" aria-hidden="true">▦</div>
+    <div class="heading-icon">{% include "shared/icon.html" with name="file-search" only %}</div>
   </div>
   <section class="panel document-search-panel"
            aria-label="Rechercher des documents">
@@ -33,8 +33,10 @@
           {{ form.reference }}
         </div>
         <div class="document-search-actions">
-          <button type="submit" class="button primary">Rechercher</button>
-          <a class="document-reset" href="{% url 'document_library' %}">Réinitialiser</a>
+          <button type="submit"
+                  class="icon-link button primary">{% include "shared/icon.html" with name="search" only %} Rechercher</button>
+          <a class="icon-link document-reset"
+             href="{% url 'document_library' %}">{% include "shared/icon.html" with name="rotate-ccw" only %} Réinitialiser</a>
         </div>
       </div>
       <datalist id="document-references">
@@ -79,14 +81,14 @@
       {% endif %}
       <div class="document-card-actions">
         {% if result.available %}
-          {% if result.can_view %}<a class="button primary"
+          {% if result.can_view %}<a class="icon-link button primary"
    href="{% url 'view_document' result.document.pk %}"
    target="_blank"
    rel="noopener"
-   aria-label="Consulter {{ result.document.nom }} (nouvel onglet)">Consulter <span aria-hidden="true">↗</span></a>{% endif %}
-          <a class="button document-download"
+   aria-label="Consulter {{ result.document.nom }} (nouvel onglet)">{% include "shared/icon.html" with name="eye" only %} Consulter</a>{% endif %}
+          <a class="icon-link button document-download"
              href="{% url 'download_document' result.document.pk %}"
-             aria-label="Télécharger {{ result.document.nom }}">Télécharger <span aria-hidden="true">↓</span></a>
+             aria-label="Télécharger {{ result.document.nom }}">{% include "shared/icon.html" with name="download" only %} Télécharger</a>
     {% else %}<span class="document-missing">Fichier à déposer</span>{% endif %}
       </div>
       </article>
@@ -99,11 +101,11 @@
   </div>
   {% if page.has_other_pages %}
     <nav class="document-pagination" aria-label="Pages des documents">
-      {% if page.has_previous %}<a class="button document-download"
-   href="?{% if query %}{{ query }}&amp;{% endif %}page={{ page.previous_page_number }}">← Précédente</a>{% endif %}
+      {% if page.has_previous %}<a class="icon-link button document-download"
+   href="?{% if query %}{{ query }}&amp;{% endif %}page={{ page.previous_page_number }}">{% include "shared/icon.html" with name="arrow-left" only %} Précédente</a>{% endif %}
       <span>Page {{ page.number }} sur {{ page.paginator.num_pages }}</span>
-      {% if page.has_next %}<a class="button document-download"
-   href="?{% if query %}{{ query }}&amp;{% endif %}page={{ page.next_page_number }}">Suivante →</a>{% endif %}
+      {% if page.has_next %}<a class="icon-link button document-download"
+   href="?{% if query %}{{ query }}&amp;{% endif %}page={{ page.next_page_number }}">Suivante {% include "shared/icon.html" with name="arrow-right" only %}</a>{% endif %}
     </nav>
   {% endif %}
 {% endblock %}

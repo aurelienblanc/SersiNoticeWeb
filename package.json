@@ -4,10 +4,13 @@
   "packageManager": "pnpm@11.25.0",
   "scripts": {
     "test:browser": "playwright test",
-    "format": "prettier --write \"static/**/*.css\" \"static/**/*.js\" \"tests/browser/*.js\" playwright.config.js package.json .prettierrc.json",
-    "format:check": "prettier --check \"static/**/*.css\" \"static/**/*.js\" \"tests/browser/*.js\" playwright.config.js package.json .prettierrc.json"
+    "format": "prettier --write \"static/**/*.css\" \"static/**/*.js\" \"tests/browser/*.js\" \"tools/*.cjs\" playwright.config.js package.json .prettierrc.json",
+    "format:check": "prettier --check \"static/**/*.css\" \"static/**/*.js\" \"tests/browser/*.js\" \"tools/*.cjs\" playwright.config.js package.json .prettierrc.json",
+    "icons:build": "node tools/build-icons.cjs",
+    "icons:check": "node tools/build-icons.cjs --check"
   },
   "devDependencies": {
+    "lucide": "1.8.0",
     "playwright": "1.62.1",
     "prettier": "3.9.10"
   }

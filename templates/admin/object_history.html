@@ -28,9 +28,11 @@
       {% if pagination_required %}
         <p class="paginator">
           {% if action_list.has_previous %}
-            <a href="?{{ page_var }}={{ action_list.previous_page_number }}">← Précédent</a>
+            <a class="icon-link"
+               href="?{{ page_var }}={{ action_list.previous_page_number }}">{% include "shared/icon.html" with name="arrow-left" only %} Précédent</a>
           {% endif %} Page {{ action_list.number }} / {{ action_list.paginator.num_pages }} {% if action_list.has_next %}
-          <a href="?{{ page_var }}={{ action_list.next_page_number }}">Suivant →</a>
+          <a class="icon-link"
+             href="?{{ page_var }}={{ action_list.next_page_number }}">Suivant {% include "shared/icon.html" with name="arrow-right" only %}</a>
       {% endif %}
       </p>
     {% endif %}
