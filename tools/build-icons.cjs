@@ -5,7 +5,7 @@ const lucide = require('lucide');
 
 const names = {
   'folder-open': 'FolderOpen',
-  'folder-archive': 'FolderArchive',
+  archive: 'Archive',
   'file-text': 'FileText',
   'file-search': 'FileSearch',
   'layout-dashboard': 'LayoutDashboard',
