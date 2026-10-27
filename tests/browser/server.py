@@ -58,7 +58,7 @@ child = DossierCible.objects.create(nom='Techniques', chemin_relatif='Techniques
 fixtures = [
     ('AA-4', 'Centrale Alpha', 0, 0, [0], True),
     ('BB-4', 'Détecteur Bêta', 1, 1, [0], True),
-    ('AA-SSI', 'Centrale SSI', 0, 0, [1], True),
+    ('AA-4-SSI', 'Centrale SSI', 0, 0, [1], True),
     ('GEN', 'Accessoire commun', 2, 2, [0, 1], True),
     ('AA-OLD', 'Ancien produit', 0, 1, [0], False),
 ]

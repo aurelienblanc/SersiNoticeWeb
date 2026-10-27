@@ -1,5 +1,15 @@
 const { test, expect } = require('playwright/test');
 
+const productInput = (page) => page.getByRole('combobox', { name: 'Produit', exact: true });
+const productOptions = (page) =>
+  page.getByRole('listbox', { name: 'Produits disponibles' }).getByRole('option');
+const chooseProduct = async (page, search, reference) => {
+  await productInput(page).fill(search);
+  await productOptions(page)
+    .filter({ has: page.getByText(reference, { exact: true }) })
+    .click();
+};
+
 test('la navigation donne accès à la recherche et conserve les filtres dans l’URL', async ({
   page,
 }, testInfo) => {
@@ -11,13 +21,18 @@ test('la navigation donne accès à la recherche et conserve les filtres dans l�
     'page',
   );
   await page.getByLabel('Marque', { exact: true }).selectOption({ label: 'Marque A' });
-  await expect(page.locator('#document-references option')).toHaveCount(3);
-  await page.getByLabel('Référence produit', { exact: true }).fill('aa-4');
+  await productInput(page).fill('centrale');
+  await expect(productOptions(page)).toHaveCount(2);
+  await productInput(page).fill('aa-4');
+  await expect(productOptions(page)).toHaveCount(2);
+  await productOptions(page)
+    .filter({ has: page.getByText('AA-4', { exact: true }) })
+    .click();
   await page.getByRole('button', { name: 'Rechercher', exact: true }).click();
   await expect(page.locator('.document-card')).toHaveCount(1);
   await expect(page.locator('.document-card h3')).toHaveText('Notice AA-4');
-  await expect(page.getByLabel('Référence produit', { exact: true })).toHaveValue('aa-4');
-  await expect(page).toHaveURL(/reference=aa-4/);
+  await expect(productInput(page)).toHaveValue('AA-4 · Centrale Alpha · Marque A');
+  await expect(page).toHaveURL(/reference=AA-4/);
   await expect(
     page.getByRole('link', { name: 'Consulter Notice AA-4 (nouvel onglet)', exact: true }),
   ).toHaveAttribute('target', '_blank');
@@ -60,7 +75,7 @@ test('le type de document limite les résultats et se combine aux autres filtres
   await expect(kind.locator('option:checked')).toHaveText('Certificat');
   await expect(page).toHaveURL(/type_document=\d+/);
   await page.getByLabel('Marque', { exact: true }).selectOption({ label: 'Marque A' });
-  await page.getByLabel('Référence produit', { exact: true }).fill('AA-4');
+  await chooseProduct(page, 'Alpha', 'AA-4');
   await page.getByRole('button', { name: 'Rechercher', exact: true }).click();
   await expect(page.getByText('Aucun document trouvé.', { exact: true })).toBeVisible();
   await page.getByRole('link', { name: 'Réinitialiser', exact: true }).click();
@@ -79,10 +94,64 @@ test('la recherche signale les expirations et permet de réinitialiser une reche
   await expect(
     page.getByRole('link', { name: 'Consulter Notice BB-4 (nouvel onglet)', exact: true }),
   ).toBeVisible();
-  await page.getByLabel('Référence produit', { exact: true }).fill('introuvable');
+  await productInput(page).fill('introuvable');
+  await expect(page.getByText('Aucun produit trouvé.', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Rechercher', exact: true }).click();
-  await expect(page.getByText('Aucun document trouvé.', { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/reference=BB-4/);
+  expect(await productInput(page).evaluate((input) => input.validationMessage)).toContain(
+    'Choisissez un produit',
+  );
+  await productInput(page).fill('');
+  await page.getByRole('button', { name: 'Rechercher', exact: true }).click();
+  await expect(page.locator('.document-card')).toHaveCount(5);
   await page.getByRole('link', { name: 'Réinitialiser', exact: true }).click();
   await expect(page.locator('.document-card')).toHaveCount(5);
-  await expect(page.getByLabel('Référence produit', { exact: true })).toHaveValue('');
+  await expect(productInput(page)).toHaveValue('');
+});
+
+test('le choix au clavier suit la marque et garde les produits inactifs accessibles', async ({
+  page,
+}) => {
+  await page.goto('/documents/');
+  const input = productInput(page);
+  await input.fill('Centrale Alpha');
+  await input.press('ArrowDown');
+  await input.press('Enter');
+  await expect(input).toHaveValue('AA-4 · Centrale Alpha · Marque A');
+  await expect(input).toHaveAttribute('aria-expanded', 'false');
+  await page.getByLabel('Marque', { exact: true }).selectOption({ label: 'Marque B' });
+  await expect(input).toHaveValue('');
+  await input.click();
+  await expect(productOptions(page)).toHaveCount(2);
+  await expect(
+    productOptions(page).filter({ has: page.getByText('AA-4', { exact: true }) }),
+  ).toHaveCount(0);
+  await page.getByLabel('Marque', { exact: true }).selectOption({ label: 'Marque A' });
+  await chooseProduct(page, 'Ancien', 'AA-OLD');
+  await page.getByRole('button', { name: 'Rechercher', exact: true }).click();
+  await expect(page.locator('.document-card h3')).toHaveText('Notice AA-OLD');
+});
+
+test('sans JavaScript le menu natif sélectionne aussi un produit exact', async ({
+  browser,
+  baseURL,
+  viewport,
+  isMobile,
+}) => {
+  const context = await browser.newContext({
+    baseURL,
+    viewport,
+    isMobile,
+    javaScriptEnabled: false,
+  });
+  try {
+    const page = await context.newPage();
+    await page.goto('/documents/');
+    await page.getByLabel('Produit', { exact: true }).selectOption('AA-4');
+    await page.getByRole('button', { name: 'Rechercher', exact: true }).click();
+    await expect(page.locator('.document-card h3')).toHaveText('Notice AA-4');
+    await expect(page.getByLabel('Produit', { exact: true })).toHaveValue('AA-4');
+  } finally {
+    await context.close();
+  }
 });

@@ -59,14 +59,19 @@ class DocumentLibraryTests(TestCase):
         self.assertContains(response, 'Inactif')
         self.assertContains(response, 'Expiré le')
 
-    def test_brand_and_partial_reference_must_match_the_same_product(self):
-        response = self.client.get('/documents/', {'marque': self.brand.pk, 'reference': 'a-1'})
+    def test_exact_product_selection_excludes_similar_references(self):
+        variant = Produit.objects.create(reference='A-100 PLUS', nom='Variante Alpha',
+            marque=self.brand, categorie=self.alpha.categorie)
+        self.document('Notice variante', [variant], 'variante.pdf')
+        response = self.client.get('/documents/', {'marque': self.brand.pk, 'reference': self.alpha.reference})
+        self.assertEqual(response.status_code, 200)
         self.assertCountEqual(self.result_ids(response), [self.alpha_doc.pk, self.shared_doc.pk])
         shared = next(result for result in response.context['results'] if result['document'].pk == self.shared_doc.pk)
         self.assertEqual([product.pk for product in shared['products']], [self.alpha.pk])
         response = self.client.get('/documents/', {'marque': self.brand.pk, 'reference': 'B-200'})
+        self.assertEqual(response.status_code, 400)
         self.assertEqual(self.result_ids(response), [])
-        self.assertContains(response, 'Aucun document trouvé.')
+        self.assertIn('reference', response.context['form'].errors)
         response = self.client.get('/documents/', {'marque': self.other_brand.pk})
         self.assertCountEqual(self.result_ids(response), [self.beta_doc.pk, self.shared_doc.pk])
 
@@ -88,7 +93,7 @@ class DocumentLibraryTests(TestCase):
         unlinked.save(update_fields=['type_document'])
         response = self.client.get('/documents/', {'type_document': certificate.pk})
         self.assertCountEqual(self.result_ids(response), [self.shared_doc.pk, unlinked.pk])
-        query = {'marque': self.brand.pk, 'reference': 'a-1', 'type_document': certificate.pk}
+        query = {'marque': self.brand.pk, 'reference': self.alpha.reference, 'type_document': certificate.pk}
         response = self.client.get('/documents/', query)
         self.assertEqual(self.result_ids(response), [self.shared_doc.pk])
         self.assertEqual([product.pk for product in response.context['results'][0]['products']], [self.alpha.pk])
@@ -101,6 +106,7 @@ class DocumentLibraryTests(TestCase):
     def test_invalid_filters_are_rejected_with_a_readable_form(self):
         for query in (
             {'marque': 'invalid'}, {'marque': 999999}, {'reference': 'A' * 256},
+            {'reference': 'A-1'}, {'reference': 'produit inexistant'},
             {'type_document': 'invalid'}, {'type_document': 999999},
         ):
             with self.subTest(query=query):
@@ -111,14 +117,23 @@ class DocumentLibraryTests(TestCase):
 
     @patch('catalogue.document_views.PAGE_SIZE', 2)
     def test_pagination_retains_filters_and_handles_invalid_page_numbers(self):
-        query = {'marque': self.brand.pk, 'reference': 'A', 'type_document': self.kind.pk}
+        self.document('Notice supplémentaire', [self.alpha], 'supplement.pdf')
+        query = {'marque': self.brand.pk, 'reference': self.alpha.reference, 'type_document': self.kind.pk}
         response = self.client.get('/documents/', query)
         self.assertEqual(response.context['page'].paginator.count, 3)
         self.assertEqual(len(self.result_ids(response)), 2)
-        self.assertContains(response, f'marque={self.brand.pk}&amp;reference=A&amp;type_document={self.kind.pk}&amp;page=2')
+        self.assertContains(response, f'marque={self.brand.pk}&amp;reference=A-100&amp;type_document={self.kind.pk}&amp;page=2')
         response = self.client.get('/documents/', {**query, 'page': 999})
         self.assertEqual(response.context['page'].number, 2)
         self.assertEqual(len(self.result_ids(response)), 1)
+
+    def test_inactive_product_and_special_characters_can_be_selected_exactly(self):
+        self.archived.reference = 'A/Été & 100'
+        self.archived.save(update_fields=['reference'])
+        response = self.client.get('/documents/', {'reference': self.archived.reference})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.result_ids(response), [self.archived_doc.pk])
+        self.assertContains(response, 'Inactif')
 
     def test_search_does_not_query_products_separately_for_each_document(self):
         for index in range(20):
