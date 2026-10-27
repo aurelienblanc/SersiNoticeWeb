@@ -24,15 +24,14 @@ def document_library(request):
     documents = Document.objects.select_related('type_document').order_by('nom', 'pk')
     valid = form.is_valid()
     if valid:
-        brand, reference = form.cleaned_data['marque'], form.cleaned_data['reference']
+        brand, product = form.cleaned_data['marque'], form.cleaned_data['reference']
         if form.cleaned_data['type_document']:
             documents = documents.filter(type_document=form.cleaned_data['type_document'])
         if brand:
             products = products.filter(marque=brand)
-        if reference:
-            products = products.filter(reference__icontains=reference)
-        if brand or reference:
-            # Both filters must match the same product, even for shared PDFs.
+        if product:
+            products = products.filter(pk=product.pk)
+        if brand or product:
             documents = documents.filter(produits__in=products).distinct()
     else:
         documents = documents.none()
@@ -53,7 +52,6 @@ def document_library(request):
     query.pop('page', None)
     return render(request, 'catalogue/documents.html', {
         'form': form, 'page': page, 'results': results, 'query': query.urlencode(),
-        'reference_suggestions': Produit.objects.select_related('marque').order_by('reference'),
     }, status=200 if valid else 400)
 
 

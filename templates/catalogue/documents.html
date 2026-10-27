@@ -6,15 +6,15 @@
 {% block page_label %}Consulter les documents{% endblock %}
 {% block extrahead %}
   <link rel="stylesheet"
-        href="{% static 'catalogue/documents.css' %}?v=20261027-1">
-  <script src="{% static 'catalogue/documents.js' %}?v=20261026-1" defer></script>
+        href="{% static 'catalogue/documents.css' %}?v=20261027-3">
+  <script src="{% static 'catalogue/documents.js' %}?v=20261027-3" defer></script>
 {% endblock %}
 {% block content %}
   <div class="page-heading">
     <div>
       <span class="eyebrow">BIBLIOTHÈQUE DOCUMENTAIRE</span>
       <h1>Trouver un document<span class="accent">.</span></h1>
-      <p>Recherchez par marque, type de document ou référence produit.</p>
+      <p>Filtrez par marque et type de document, puis sélectionnez un produit.</p>
     </div>
     <div class="heading-icon">{% include "shared/icon.html" with name="file-search" only %}</div>
   </div>
@@ -34,7 +34,28 @@
         </div>
         <div class="document-search-field document-reference-field">
           <label for="id_reference">{{ form.reference.label }}</label>
-          {{ form.reference }}
+          <div class="document-product-picker">
+            {{ form.reference }}
+            <div class="product-combobox" hidden>
+              <input id="document-product-search"
+                     type="search"
+                     role="combobox"
+                     aria-autocomplete="list"
+                     aria-expanded="false"
+                     aria-controls="document-product-options"
+                     autocomplete="off"
+                     placeholder="Rechercher une référence ou un nom…">
+              <ul id="document-product-options"
+                  class="document-product-options"
+                  role="listbox"
+                  aria-label="Produits disponibles"
+                  hidden>
+              </ul>
+              <span class="document-product-status sr-only"
+                    id="document-product-status"
+                    role="status"></span>
+            </div>
+          </div>
         </div>
         <div class="document-search-actions">
           <button type="submit"
@@ -43,13 +64,6 @@
              href="{% url 'document_library' %}">{% include "shared/icon.html" with name="rotate-ccw" only %} Réinitialiser</a>
         </div>
       </div>
-      <datalist id="document-references">
-        {% for product in reference_suggestions %}
-          <option value="{{ product.reference }}"
-                  label="{{ product.nom }} · {{ product.marque.nom }}"
-                  data-brand="{{ product.marque_id }}"></option>
-        {% endfor %}
-      </datalist>
       {% if form.errors %}
         <div class="document-search-errors" role="alert">
           {% for field in form %}{% for error in field.errors %}<p>{{ field.label }} : {{ error }}</p>{% endfor %}{% endfor %}
