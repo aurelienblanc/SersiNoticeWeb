@@ -49,7 +49,8 @@ class MaintenanceTests(TransactionTestCase):
         self.kind = TypeDocument.objects.create(nom='Notice', type_export=self.export)
         self.folder = DossierCible.objects.create(nom='Notices', chemin_relatif='Notices')
         self.child = DossierCible.objects.create(nom='ECS', chemin_relatif='ECS', parent=self.folder)
-        self.product = Produit.objects.create(reference='ASD-TEST', nom='Produit initial', marque=self.brand, categorie=self.category)
+        self.product = Produit.objects.create(reference='ASD-TEST', reference_dolibarr='ERP-ASD-TEST',
+            nom='Produit initial', marque=self.brand, categorie=self.category)
         self.product.systemes.add(self.system)
         self.document = Document.objects.create(nom='Notice initiale', type_document=self.kind)
         self.content = b'%PDF-1.4\nDocumentation de test\n'
@@ -67,6 +68,7 @@ class MaintenanceTests(TransactionTestCase):
         backup = create_backup()
         initial_filename = self.document.fichier.name
         self.product.nom = 'Produit modifié'
+        self.product.reference_dolibarr = 'ERP-MODIFIE'
         self.product.save()
         self.product.documents.clear()
         self.document.fichier.save('nouvelle-notice.pdf', ContentFile(b'nouveau fichier'))
@@ -80,6 +82,7 @@ class MaintenanceTests(TransactionTestCase):
         self.document.refresh_from_db()
         self.access.refresh_from_db()
         self.assertEqual(self.product.nom, 'Produit initial')
+        self.assertEqual(self.product.reference_dolibarr, 'ERP-ASD-TEST')
         self.assertEqual(Produit.objects.count(), 1)
         self.assertEqual(list(self.product.documents.values_list('pk', flat=True)), [self.document.pk])
         self.assertEqual(list(self.product.systemes.values_list('pk', flat=True)), [self.system.pk])
@@ -101,7 +104,7 @@ class MaintenanceTests(TransactionTestCase):
             self.assertNotIn(self.password, archive.read('catalogue.json').decode())
             self.assertNotIn('password_hash', archive.read('catalogue.json').decode())
             self.assertNotIn('ancien_chemin', archive.read('catalogue.json').decode())
-            self.assertEqual(json.loads(archive.read('manifest.json'))['version'], 2)
+            self.assertEqual(json.loads(archive.read('manifest.json'))['version'], 3)
         path.write_bytes(path.read_bytes() + b'changed')
         with self.assertRaises(BackupError):
             restore_backup(backup)
@@ -142,7 +145,7 @@ class MaintenanceTests(TransactionTestCase):
         with self.assertRaises(BackupError):
             validate_archive(path)
 
-    def rewrite_web_backup(self, backup, *, version, extra_fields):
+    def rewrite_web_backup(self, backup, *, version, extra_fields, omit_dolibarr=False):
         """Rebuild a web-format fixture with consistent checksums."""
         path = backup_path(backup)
         with zipfile.ZipFile(path) as archive:
@@ -151,6 +154,8 @@ class MaintenanceTests(TransactionTestCase):
         for row in rows:
             if row['model'] == 'catalogue.document':
                 row['fields'].update(extra_fields)
+            if omit_dolibarr and row['model'] == 'catalogue.produit':
+                row['fields'].pop('reference_dolibarr')
         data['catalogue.json'] = json.dumps(rows).encode()
         manifest = json.loads(data['manifest.json'])
         manifest['version'] = version
@@ -169,7 +174,7 @@ class MaintenanceTests(TransactionTestCase):
     def test_previous_web_backup_restores_pdf_relations_and_history(self):
         record_event('catalogue', 'previous.web.event', 'Événement sauvegardé')
         backup = create_backup()
-        self.rewrite_web_backup(backup, version=1, extra_fields={'ancien_chemin': 'Z:\\Documents\\notice.pdf'})
+        self.rewrite_web_backup(backup, version=1, extra_fields={'ancien_chemin': 'Z:\\Documents\\notice.pdf'}, omit_dolibarr=True)
         self.assertEqual(verify_backup(backup)['version'], 1)
         self.product.nom = 'Produit modifié'
         self.product.save()
@@ -184,13 +189,31 @@ class MaintenanceTests(TransactionTestCase):
         self.assertEqual(Path(self.document.fichier.path).read_bytes(), self.content)
         self.assertTrue(ActivityEvent.objects.filter(event='previous.web.event').exists())
         self.assertFalse(hasattr(self.document, 'ancien_chemin'))
+        self.assertEqual(self.product.reference_dolibarr, '')
+
+    def test_previous_format_two_backup_initializes_empty_dolibarr_references(self):
+        backup = create_backup()
+        self.rewrite_web_backup(backup, version=2, extra_fields={}, omit_dolibarr=True)
+        self.assertEqual(verify_backup(backup)['version'], 2)
+        restore_backup(backup)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.reference_dolibarr, '')
+        self.assertEqual(self.product.documents.get().pk, self.document.pk)
+        self.assertEqual(self.product.reference, 'ASD-TEST')
+
+    def test_current_backup_requires_the_dolibarr_reference_field(self):
+        backup = create_backup()
+        self.rewrite_web_backup(backup, version=3, extra_fields={}, omit_dolibarr=True)
+        with self.assertRaises(BackupError):
+            validate_archive(backup_path(backup))
 
     def test_backup_compatibility_still_rejects_unknown_fields_and_versions(self):
         cases = [
             (1, {'unexpected_field': 'invalid'}),
             (2, {'ancien_chemin': 'not allowed in format 2'}),
             (1, {'ancien_chemin': {'invalid': 'type'}}),
-            (3, {}),
+            (3, {'unexpected_field': 'invalid'}),
+            (4, {}),
         ]
         for version, fields in cases:
             with self.subTest(version=version, fields=fields):

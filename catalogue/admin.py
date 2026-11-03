@@ -73,13 +73,13 @@ class DocumentAdmin(admin.ModelAdmin):
 
 @admin.register(Produit, site=admin_site)
 class ProduitAdmin(admin.ModelAdmin):
-    list_display = ['reference', 'nom', 'marque', 'categorie', 'actif']
+    list_display = ['reference', 'reference_dolibarr', 'nom', 'marque', 'categorie', 'actif']
     list_filter = ['actif', 'systemes', 'marque', 'categorie']
-    search_fields = ['reference', 'nom', 'description']
+    search_fields = ['reference', 'reference_dolibarr', 'nom', 'description']
     filter_horizontal = ['systemes', 'documents']
     list_select_related = ['marque', 'categorie']
     fieldsets = [
-        ('Identification du produit', {'fields': ['reference', 'nom', 'marque', 'categorie', 'actif']}),
+        ('Identification du produit', {'fields': ['reference', 'reference_dolibarr', 'nom', 'marque', 'categorie', 'actif']}),
         ('Systèmes et documentation', {'fields': ['systemes', 'documents']}),
         ('Description', {'fields': ['description'], 'classes': ['collapse']}),
     ]

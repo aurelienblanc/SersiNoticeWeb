@@ -142,6 +142,10 @@ class Document(models.Model):
 
 class Produit(models.Model):
     reference = models.CharField('référence', max_length=255, unique=True)
+    reference_dolibarr = models.CharField(
+        'référence Dolibarr', max_length=255, blank=True, default='', db_index=True,
+        help_text='Référence exacte du produit dans Dolibarr pour retrouver ses notices depuis une proposition commerciale.',
+    )
     nom = models.CharField('nom', max_length=500)
     description = models.TextField(blank=True)
     marque = models.ForeignKey(Marque, on_delete=models.PROTECT)

@@ -1,0 +1,121 @@
+{% extends "catalogue/base.html" %}
+
+{% load static %}
+
+{% block title %}Proposition Dolibarr · SERSI Notices{% endblock %}
+{% block page_label %}Depuis une proposition{% endblock %}
+{% block extrahead %}
+  <link rel="stylesheet"
+        href="{% static 'catalogue/dolibarr.css' %}?v=20261103-1">
+{% endblock %}
+{% block content %}
+  <a class="icon-link back-link"
+     href="{% url 'index' %}">{% include "shared/icon.html" with name="arrow-left" only %} Dossier documentaire</a>
+  <div class="page-heading">
+    <div>
+      <span class="eyebrow">{{ erp_name }}</span>
+      <h1>Un dossier depuis votre proposition<span class="accent">.</span></h1>
+      <p>Retrouvez automatiquement les notices des produits de votre proposition commerciale.</p>
+    </div>
+    <div class="heading-icon">{% include "shared/icon.html" with name="file-plus" only %}</div>
+  </div>
+  {% if lookup_form %}
+    <section class="panel dolibarr-panel">
+      <h2>Charger la proposition</h2>
+      <form method="post"
+            action="{% url 'dolibarr_lookup' %}"
+            class="proposal-lookup-form">
+        {% csrf_token %}
+        <div class="proposal-number">
+          <label for="{{ lookup_form.reference.id_for_label }}">{{ lookup_form.reference.label }}</label>
+          {{ lookup_form.reference }}
+          {{ lookup_form.reference.errors }}
+        </div>
+        <button type="submit" class="icon-link button primary">{% include "shared/icon.html" with name="search" only %} Charger les produits</button>
+        {% if lookup_form.non_field_errors %}<div class="alert error" role="alert">{{ lookup_form.non_field_errors }}</div>{% endif %}
+      </form>
+    </section>
+  {% endif %}
+  {% if report %}
+    <section class="panel dolibarr-panel">
+      <div class="proposal-heading">
+        <h2>Proposition {{ report.reference }}</h2>
+        <a class="icon-link" href="{% url 'dolibarr_lookup' %}">{% include "shared/icon.html" with name="refresh-cw" only %} Charger une autre proposition</a>
+      </div>
+      <dl class="proposal-stats">
+        <div>
+          <dt>Lignes de la proposition</dt>
+          <dd>
+            {{ report.line_count }}
+          </dd>
+        </div>
+        <div>
+          <dt>Produits reconnus</dt>
+          <dd>
+            {{ report.products|length }}
+          </dd>
+        </div>
+        <div>
+          <dt>Lignes à vérifier</dt>
+          <dd>
+            {{ report.issues|length }}
+          </dd>
+        </div>
+      </dl>
+      <h3>Produits pour le dossier</h3>
+      <ul class="proposal-products">
+        {% for product in report.products %}
+          <li><strong>{{ product.reference }}</strong><span>{{ product.nom }} · {{ product.marque.nom }}{% if not product.actif %} · Inactif{% endif %}</span><small>Dolibarr : {{ product.reference_dolibarr }}</small></li>
+        {% empty %}
+          <li>Aucun produit reconnu. Renseignez les références Dolibarr dans les fiches produits, puis rechargez la proposition.</li>
+        {% endfor %}
+      </ul>
+      {% if report.issues %}
+        <details class="proposal-issues">
+          <summary>{{ report.issues|length }} ligne{{ report.issues|length|pluralize }} à vérifier avant préparation</summary>
+          <p>Ces lignes ne peuvent pas ajouter de notices automatiquement. Les lignes libres, sans produit Dolibarr associé, sont également indiquées ici.</p>
+          <ul class="proposal-products">
+            {% for issue in report.issues %}
+              <li><strong>Ligne {{ issue.line }}{% if issue.reference %} · {{ issue.reference }}{% endif %}</strong><span>{{ issue.label }}</span><small>{{ issue.reason }}</small></li>
+            {% endfor %}
+          </ul>
+        </details>
+        <a class="icon-link"
+           href="{% url 'admin:catalogue_produit_changelist' %}">{% include "shared/icon.html" with name="square-pen" only %} Renseigner les correspondances dans l’administration</a>
+      {% endif %}
+    </section>
+    {% if report.products %}
+      <section class="panel dolibarr-panel">
+        <h2>Préparer le dossier</h2>
+        <form method="post"
+              action="{% url 'dolibarr_preview' %}"
+              class="proposal-selection-form">
+          {% csrf_token %}
+          <input type="hidden" name="import_token" value="{{ token }}">
+          {{ selection_form.non_field_errors }}
+          <div class="field-grid">
+            <div>
+              <label for="{{ selection_form.projet.id_for_label }}">{{ selection_form.projet.label }}</label>{{ selection_form.projet }}{{ selection_form.projet.errors }}
+            </div>
+            <div>
+              <label for="{{ selection_form.client.id_for_label }}">{{ selection_form.client.label }}</label>{{ selection_form.client }}{{ selection_form.client.errors }}
+            </div>
+          </div>
+          <fieldset class="proposal-document-types">
+            <legend>{{ selection_form.types_export.label }}</legend>
+            {{ selection_form.types_export }}{{ selection_form.types_export.errors }}
+          </fieldset>
+          <label class="check-label">{{ selection_form.exclure_expires }} {{ selection_form.exclure_expires.label }}</label>
+          {% if report.issues %}
+            <div class="alert warning">
+              <label class="check-label">{{ selection_form.confirmer_lignes }} {{ selection_form.confirmer_lignes.label }}</label>
+              {{ selection_form.confirmer_lignes.errors }}
+            </div>
+          {% endif %}
+          <button type="submit" class="icon-link button primary">{% include "shared/icon.html" with name="archive" only %} Préparer le dossier</button>
+          <p class="button-caption">Vous pourrez vérifier le contenu avant de télécharger le ZIP.</p>
+        </form>
+      </section>
+    {% endif %}
+  {% endif %}
+{% endblock %}

@@ -41,6 +41,8 @@ class DocumentSchemaTests(TransactionTestCase):
             self.assertEqual(current.dossiers.get().pk, folder.pk)
             self.assertEqual(Produit.objects.get(pk=product.pk).documents.get().pk, document.pk)
             self.assertEqual(Produit.objects.get(pk=product.pk).systemes.get().pk, system.pk)
+            self.assertEqual(Produit.objects.get(pk=product.pk).reference, 'SCHEMA-01')
+            self.assertEqual(Produit.objects.get(pk=product.pk).reference_dolibarr, '')
             self.assertEqual(pdf.read_bytes(), b'%PDF-1.4\nSchema test')
             self.assertNotIn('ancien_chemin', [field.name for field in current._meta.fields])
 

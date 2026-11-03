@@ -11,7 +11,7 @@ from django.core.management.base import CommandError
 from django.test import Client, RequestFactory, TestCase, override_settings
 from django.utils import timezone
 
-from .models import AdministrationAccess, Marque
+from .models import AdministrationAccess, Categorie, Marque, Produit, Systeme
 from .admin_access import client_address
 
 
@@ -152,6 +152,28 @@ class SharedAdministrationTests(TestCase):
         response = self.client.post('/admin/catalogue/typedocument/add/', {'nom': 'Sans groupe', 'type_export': ''})
         self.assertEqual(response.status_code, 200)
         self.assertIn('type_export', response.context['adminform'].form.errors)
+
+    def test_product_dolibarr_reference_can_be_edited_searched_and_left_blank(self):
+        brand = Marque.objects.create(nom='Marque ERP')
+        category = Categorie.objects.create(nom='Catégorie ERP')
+        system = Systeme.objects.create(nom='Système ERP')
+        product = Produit.objects.create(reference='APP-01', nom='Produit ERP', marque=brand, categorie=category)
+        product.systemes.add(system)
+        self.connect()
+        url = f'/admin/catalogue/produit/{product.pk}/change/'
+        self.assertContains(self.client.get(url), 'name="reference_dolibarr"')
+        data = {'reference': product.reference, 'nom': product.nom, 'marque': brand.pk,
+                'categorie': category.pk, 'actif': 'on', 'systemes': [system.pk],
+                'reference_dolibarr': '  ERP-ASD/01  ', '_save': 'Enregistrer'}
+        self.assertEqual(self.client.post(url, data).status_code, 302)
+        product.refresh_from_db()
+        self.assertEqual(product.reference_dolibarr, 'ERP-ASD/01')
+        response = self.client.get('/admin/catalogue/produit/', {'q': 'ERP-ASD/01'})
+        self.assertEqual(list(response.context['cl'].queryset.values_list('pk', flat=True)), [product.pk])
+        self.assertEqual(self.client.post(url, {**data, 'reference_dolibarr': ''}).status_code, 302)
+        product.refresh_from_db()
+        self.assertEqual(product.reference_dolibarr, '')
+        self.assertEqual(product.reference, 'APP-01')
 
     def test_password_change_checks_current_password_strength_and_confirmation(self):
         self.connect()
