@@ -31,7 +31,7 @@ MODELS = {model._meta.label_lower: model for model in CATALOGUE_MODELS}
 METADATA = {'catalogue.json', 'historique.json', 'journal.json'}
 JSON_LIMIT = 64 * 1024 * 1024
 CHUNK = 1024 * 1024
-BACKUP_VERSION = 2
+BACKUP_VERSION = 3
 
 
 class BackupError(Exception):
@@ -161,7 +161,7 @@ def create_backup(origin='manual', progress=lambda percent, message: None):
 
 
 def _read_catalogue(archive, version):
-    """Read web snapshots, discarding only the retired field of format 1."""
+    """Upgrade older web snapshots before strict validation of their schema."""
     rows = json.loads(archive.read('catalogue.json'))
     if version == 1 and isinstance(rows, list):
         for row in rows:
@@ -171,6 +171,12 @@ def _read_catalogue(archive, version):
             if isinstance(fields, dict) and 'ancien_chemin' in fields:
                 if not isinstance(fields.pop('ancien_chemin'), str):
                     raise BackupError('Une valeur du catalogue sauvegardé est invalide.')
+    if version in (1, 2) and isinstance(rows, list):
+        for row in rows:
+            if isinstance(row, dict) and row.get('model') == 'catalogue.produit':
+                fields = row.get('fields')
+                if isinstance(fields, dict):
+                    fields.setdefault('reference_dolibarr', '')
     return rows
 
 
@@ -249,7 +255,7 @@ def validate_archive(path, progress=lambda percent, message: None):
                 raise BackupError('Le manifeste de sauvegarde est absent ou invalide.')
             manifest = json.loads(archive.read('manifest.json'))
             version = manifest.get('version')
-            if manifest.get('format') != 'sersi-notice-backup' or type(version) is not int or version not in (1, BACKUP_VERSION):
+            if manifest.get('format') != 'sersi-notice-backup' or type(version) is not int or version not in (1, 2, BACKUP_VERSION):
                 raise BackupError('Ce fichier n’est pas une sauvegarde SERSI Notices compatible.')
             entries = manifest.get('entries')
             if not isinstance(entries, dict) or set(entries) | {'manifest.json'} != set(names) or not METADATA.issubset(entries):

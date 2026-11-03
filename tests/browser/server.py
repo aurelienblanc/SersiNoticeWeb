@@ -4,6 +4,9 @@ import logging
 import secrets
 import sys
 import tempfile
+import json
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from datetime import timedelta
 from pathlib import Path
 
@@ -11,6 +14,40 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 temporary_root = ROOT / '.tmp' / 'browser-tests'
 temporary_root.mkdir(parents=True, exist_ok=True)
+
+
+class DolibarrFixture(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.headers.get('DOLAPIKEY') != 'browser-dolibarr-only-key':
+            self.send_json(403, {})
+        elif self.path == '/api/index.php/proposals/ref/PR-OK':
+            self.send_json(200, {'id': '10', 'ref': 'PR-OK', 'lines': [
+                {'fk_product': '1'}, {'fk_product': '1'}, {'fk_product': '2'},
+            ]})
+        elif self.path == '/api/index.php/proposals/ref/PR-PARTIAL':
+            self.send_json(200, {'id': '11', 'ref': 'PR-PARTIAL', 'lines': [
+                {'fk_product': '1'}, {'fk_product': '99'}, {'fk_product': '0', 'label': 'Ligne libre'},
+            ]})
+        elif self.path.startswith('/api/index.php/products/'):
+            reference = {'1': 'ERP-AA-4', '2': 'ERP-BB-4', '99': 'SANS-CORRESPONDANCE'}.get(self.path.rsplit('/', 1)[-1])
+            self.send_json(200 if reference else 404, {'ref': reference})
+        else:
+            self.send_json(404, {})
+
+    def send_json(self, code, payload):
+        raw = json.dumps(payload).encode()
+        self.send_response(code)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Content-Length', str(len(raw)))
+        self.end_headers()
+        self.wfile.write(raw)
+
+    def log_message(self, *args):
+        pass
+
+
+erp_server = ThreadingHTTPServer(('127.0.0.1', 0), DolibarrFixture)
+threading.Thread(target=erp_server.serve_forever, daemon=True).start()
 
 # Explicitly override inherited production configuration before Django loads.
 for name in list(os.environ):
@@ -23,6 +60,10 @@ os.environ.update({
     'SERSI_DEBUG': '1',
     'SERSI_HTTPS': '0',
     'SERSI_TRUST_PROXY': '0',
+    'SERSI_DOLIBARR_URL': f'http://127.0.0.1:{erp_server.server_address[1]}',
+    'SERSI_DOLIBARR_NAME': 'ERP de test',
+    'SERSI_DOLIBARR_API_KEY': 'browser-dolibarr-only-key',
+    'SERSI_DOLIBARR_API_KEY_FILE': '',
 })
 
 import django
@@ -63,7 +104,8 @@ fixtures = [
     ('AA-OLD', 'Ancien produit', 0, 1, [0], False),
 ]
 for reference, name, brand, category, compatible, active in fixtures:
-    product = Produit.objects.create(reference=reference, nom=name, marque=brands[brand], categorie=categories[category], actif=active)
+    product = Produit.objects.create(reference=reference, reference_dolibarr=f'ERP-{reference}',
+        nom=name, marque=brands[brand], categorie=categories[category], actif=active)
     product.systemes.set([systems[index] for index in compatible])
     document = Document.objects.create(nom=f'Notice {reference}',
         type_document=certificate_kind if reference == 'GEN' else kind,

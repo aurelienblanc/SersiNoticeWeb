@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core import signing
 from django.core.exceptions import ValidationError
 from django.db.models import Count
@@ -29,6 +30,7 @@ def catalogue_context(form=None):
         'nombre_documents': Document.objects.count(),
         'nombre_expires': Document.objects.filter(date_expiration__lt=timezone.localdate()).count(),
         'nombre_marques': Marque.objects.count(),
+        'dolibarr_enabled': bool(settings.SERSI_DOLIBARR_URL),
     }
 
 
@@ -40,7 +42,10 @@ def index(request):
 @require_POST
 @never_cache
 def preview(request):
-    form = SelectionForm(request.POST)
+    return render_selection_preview(request, SelectionForm(request.POST))
+
+
+def render_selection_preview(request, form):
     if not form.is_valid():
         return render(request, 'catalogue/index.html', catalogue_context(form), status=400)
     selection = form.selection()
