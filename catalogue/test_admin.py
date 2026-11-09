@@ -187,7 +187,7 @@ class SharedAdministrationTests(TestCase):
         source.refresh_from_db()
         self.assertEqual(decrypt_key(source.url, source.cle_chiffree), key)
 
-    def test_product_dolibarr_reference_can_be_edited_searched_and_removed(self):
+    def test_product_dolibarr_references_can_be_added_searched_and_removed(self):
         brand = Marque.objects.create(nom='Marque ERP')
         category = Categorie.objects.create(nom='Catégorie ERP')
         system = Systeme.objects.create(nom='Système ERP')
@@ -195,18 +195,32 @@ class SharedAdministrationTests(TestCase):
         product.systemes.add(system)
         self.connect()
         url = f'/admin/catalogue/produit/{product.pk}/change/'
-        self.assertContains(self.client.get(url), 'name="reference_dolibarr"')
+        self.assertContains(self.client.get(url), 'name="references_dolibarr-0-reference"')
         data = {'reference': product.reference, 'nom': product.nom, 'marque': brand.pk,
-                'categorie': category.pk, 'actif': 'on', 'systemes': [system.pk],
-                'reference_dolibarr': '  ERP-ASD/01  ', '_save': 'Enregistrer'}
-        self.assertEqual(self.client.post(url, data).status_code, 302)
-        product.refresh_from_db()
-        self.assertEqual(product.reference_dolibarr, 'ERP-ASD/01')
-        response = self.client.get('/admin/catalogue/produit/', {'q': 'ERP-ASD/01'})
+                'categorie': category.pk, 'actif': 'on', 'systemes': [system.pk], '_save': 'Enregistrer'}
+        first = 'ERP-ASD/01'
+        second = 'ERP-ASD/02'
+        prefix = 'references_dolibarr'
+        add = {
+            **data, f'{prefix}-TOTAL_FORMS': 2, f'{prefix}-INITIAL_FORMS': 0,
+            f'{prefix}-0-reference': f'  {first}  ', f'{prefix}-1-reference': second,
+        }
+        duplicate = self.client.post(url, {**add, f'{prefix}-1-reference': first})
+        self.assertEqual(duplicate.status_code, 200)
+        self.assertTrue(duplicate.context['inline_admin_formsets'][0].formset.non_form_errors())
+        self.assertFalse(product.references_dolibarr.exists())
+        self.assertEqual(self.client.post(url, add).status_code, 302)
+        self.assertEqual(list(product.references_dolibarr.values_list('reference', flat=True)), [first, second])
+        response = self.client.get('/admin/catalogue/produit/', {'q': second})
         self.assertEqual(list(response.context['cl'].queryset.values_list('pk', flat=True)), [product.pk])
-        self.assertEqual(self.client.post(url, {**data, 'reference_dolibarr': ''}).status_code, 302)
+        first_row, second_row = product.references_dolibarr.all()
+        response = self.client.post(url, {
+            **add, f'{prefix}-INITIAL_FORMS': 2, f'{prefix}-0-id': first_row.pk,
+            f'{prefix}-1-id': second_row.pk, f'{prefix}-0-DELETE': 'on',
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(list(product.references_dolibarr.values_list('reference', flat=True)), [second])
         product.refresh_from_db()
-        self.assertEqual(product.reference_dolibarr, '')
         self.assertEqual(product.reference, 'APP-01')
 
     def test_password_change_checks_current_password_strength_and_confirmation(self):

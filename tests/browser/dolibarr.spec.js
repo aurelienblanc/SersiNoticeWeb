@@ -26,7 +26,9 @@ test('une proposition reconnue prépare les notices et télécharge le ZIP', asy
   expect((await download).suggestedFilename()).toBe('Client test - PR-OK.zip');
 });
 
-test('une commande client reconnue prépare et télécharge le ZIP', async ({ page }) => {
+test('une commande avec deux références du même produit télécharge ses notices une seule fois', async ({
+  page,
+}) => {
   await page.goto('/dolibarr/');
   await page.getByLabel('Source Dolibarr').selectOption({ label: 'ERP de test' });
   await page.getByLabel('Type de document Dolibarr').selectOption({ label: 'Commande client' });
@@ -35,6 +37,7 @@ test('une commande client reconnue prépare et télécharge le ZIP', async ({ pa
   await page.getByRole('button', { name: 'Charger les produits' }).click();
   await expect(page.getByRole('heading', { name: 'Commande client CO-OK' })).toBeVisible();
   await expect(page.locator('.proposal-products li strong')).toHaveText(['AA-4']);
+  await expect(page.locator('.proposal-products li small')).toContainText('ERP-AA-4, ERP-AA-4-BIS');
   await expect(page.getByLabel('Nom du projet')).toHaveValue('CO-OK');
   await page.getByRole('button', { name: 'Préparer le dossier', exact: true }).click();
   await expect(page.locator('#archive-list .file-row')).toHaveCount(1);
@@ -74,7 +77,7 @@ test('une autre source reconnaît le produit avec la même référence Dolibarr'
   await expect(page.locator('.proposal-products li strong')).toHaveText(['AA-4']);
 });
 
-test('l’administration permet de créer une source et affiche une seule référence par produit', async ({
+test('l’administration permet de créer une source et affiche les références Dolibarr du produit', async ({
   page,
 }, testInfo) => {
   await page.goto('/admin/login/');
@@ -97,9 +100,13 @@ test('l’administration permet de créer une source et affiche une seule réfé
       exact: true,
     }),
   ).toBeVisible();
-  await page.goto('/admin/catalogue/produit/2/change/');
-  const reference = page.getByLabel('Référence Dolibarr', { exact: false });
-  await expect(reference).toBeVisible();
-  await expect(reference).toHaveValue('ERP-BB-4');
+  await page.goto('/admin/catalogue/produit/1/change/');
+  await expect(page.getByRole('heading', { name: 'Références Dolibarr' })).toBeVisible();
+  await expect(page.locator('input[name="references_dolibarr-0-reference"]')).toHaveValue(
+    'ERP-AA-4',
+  );
+  await expect(page.locator('input[name="references_dolibarr-1-reference"]')).toHaveValue(
+    'ERP-AA-4-BIS',
+  );
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

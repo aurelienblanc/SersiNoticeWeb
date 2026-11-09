@@ -142,10 +142,6 @@ class Document(models.Model):
 
 class Produit(models.Model):
     reference = models.CharField('référence', max_length=255, unique=True)
-    reference_dolibarr = models.CharField(
-        'référence Dolibarr', max_length=255, blank=True, default='', db_index=True,
-        help_text='Référence exacte de ce produit, commune à toutes les sources Dolibarr.',
-    )
     nom = models.CharField('nom', max_length=500)
     description = models.TextField(blank=True)
     marque = models.ForeignKey(Marque, on_delete=models.PROTECT)
@@ -159,6 +155,22 @@ class Produit(models.Model):
 
     def __str__(self):
         return f'{self.reference} · {self.nom}'
+
+
+class ReferenceDolibarr(models.Model):
+    produit = models.ForeignKey(Produit, on_delete=models.CASCADE, related_name='references_dolibarr')
+    reference = models.CharField('référence', max_length=255, db_index=True)
+
+    class Meta:
+        ordering = ['reference']
+        verbose_name = 'référence Dolibarr'
+        verbose_name_plural = 'références Dolibarr'
+        constraints = [
+            models.UniqueConstraint(fields=['produit', 'reference'], name='unique_dolibarr_reference_per_product'),
+        ]
+
+    def __str__(self):
+        return self.reference
 
 
 class DolibarrSource(models.Model):

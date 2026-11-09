@@ -38,9 +38,10 @@ class DolibarrFixture(BaseHTTPRequestHandler):
                 {'fk_product': '1'}, {'fk_product': '99'}, {'fk_product': '0', 'label': 'Ligne libre'},
             ]})
         elif self.path == '/api/index.php/orders/ref/CO-OK':
-            self.send_json(200, {'id': '12', 'ref': 'CO-OK', 'lines': [{'fk_product': '1'}]})
+            self.send_json(200, {'id': '12', 'ref': 'CO-OK', 'lines': [{'fk_product': '1'}, {'fk_product': '3'}]})
         elif self.path.startswith('/api/index.php/products/'):
-            reference = {'1': 'ERP-AA-4', '2': 'ERP-BB-4', '99': 'SANS-CORRESPONDANCE'}.get(self.path.rsplit('/', 1)[-1])
+            reference = {'1': 'ERP-AA-4', '2': 'ERP-BB-4', '3': 'ERP-AA-4-BIS',
+                         '99': 'SANS-CORRESPONDANCE'}.get(self.path.rsplit('/', 1)[-1])
             self.send_json(200 if reference else 404, {'ref': reference})
         else:
             self.send_json(404, {})
@@ -120,8 +121,11 @@ fixtures = [
     ('AA-OLD', 'Ancien produit', 0, 1, [0], False),
 ]
 for reference, name, brand, category, compatible, active in fixtures:
-    product = Produit.objects.create(reference=reference, reference_dolibarr=f'ERP-{reference}',
+    product = Produit.objects.create(reference=reference,
         nom=name, marque=brands[brand], categorie=categories[category], actif=active)
+    product.references_dolibarr.create(reference=f'ERP-{reference}')
+    if reference == 'AA-4':
+        product.references_dolibarr.create(reference='ERP-AA-4-BIS')
     product.systemes.set([systems[index] for index in compatible])
     document = Document.objects.create(nom=f'Notice {reference}',
         type_document=certificate_kind if reference == 'GEN' else kind,

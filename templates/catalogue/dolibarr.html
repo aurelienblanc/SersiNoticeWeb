@@ -80,8 +80,10 @@
       </dl>
       <h3>Produits pour le dossier</h3>
       <ul class="proposal-products">
-        {% for product in report.products %}
-          <li><strong>{{ product.reference }}</strong><span>{{ product.nom }} · {{ product.marque.nom }}{% if not product.actif %} · Inactif{% endif %}</span><small>Dolibarr : {{ product.reference_dolibarr }}</small></li>
+        {% for item in report.products %}
+          {% with product=item.product %}
+            <li><strong>{{ product.reference }}</strong><span>{{ product.nom }} · {{ product.marque.nom }}{% if not product.actif %} · Inactif{% endif %}</span><small>Dolibarr : {{ item.references|join:", " }}</small></li>
+          {% endwith %}
         {% empty %}
           <li>Aucun produit reconnu. Renseignez les références Dolibarr dans les fiches produits, puis rechargez le document.</li>
         {% endfor %}

@@ -42,7 +42,7 @@ class DocumentSchemaTests(TransactionTestCase):
             self.assertEqual(Produit.objects.get(pk=product.pk).documents.get().pk, document.pk)
             self.assertEqual(Produit.objects.get(pk=product.pk).systemes.get().pk, system.pk)
             self.assertEqual(Produit.objects.get(pk=product.pk).reference, 'SCHEMA-01')
-            self.assertEqual(Produit.objects.get(pk=product.pk).reference_dolibarr, '')
+            self.assertFalse(Produit.objects.get(pk=product.pk).references_dolibarr.exists())
             self.assertEqual(pdf.read_bytes(), b'%PDF-1.4\nSchema test')
             self.assertNotIn('ancien_chemin', [field.name for field in current._meta.fields])
 
@@ -68,7 +68,7 @@ class DocumentSchemaTests(TransactionTestCase):
         self.restore_current_schema()
         from .dolibarr_config import decrypt_key
         from .models import DolibarrSource, Produit
-        self.assertEqual(Produit.objects.get(pk=product.pk).reference_dolibarr, 'REF-HISTORIQUE')
+        self.assertEqual(Produit.objects.get(pk=product.pk).references_dolibarr.get().reference, 'REF-HISTORIQUE')
         source = DolibarrSource.objects.get(nom='ERP historique')
         self.assertEqual(source.url, 'https://erp.example.test')
         self.assertTrue(source.active)
@@ -97,5 +97,5 @@ class DocumentSchemaTests(TransactionTestCase):
         conflicting.save(update_fields=['reference'])
         self.restore_current_schema()
         from .models import DolibarrSource, Produit
-        self.assertEqual(Produit.objects.get(pk=product.pk).reference_dolibarr, 'COMMUNE')
+        self.assertEqual(Produit.objects.get(pk=product.pk).references_dolibarr.get().reference, 'COMMUNE')
         self.assertEqual(DolibarrSource.objects.count(), 2)

@@ -11,7 +11,7 @@ from django.db.models import TextChoices
 from django.utils.html import strip_tags
 
 from .dolibarr_config import decrypt_key, valid_api_key, validate_connection_url
-from .models import Produit
+from .models import ReferenceDolibarr
 
 MAX_RESPONSE_BYTES = 4 * 1024 * 1024
 MAX_LINES = 500
@@ -113,18 +113,26 @@ class DolibarrClient:
         return record_reference, entries
 
 
-def matching_products(references):
-    return Produit.objects.filter(reference_dolibarr__in=references).select_related(
-        'marque', 'categorie',
-    ).order_by('reference')
+def matching_references(references):
+    return ReferenceDolibarr.objects.filter(reference__in=references).select_related(
+        'produit__marque',
+    ).order_by('produit__reference', 'reference')
+
+
+def group_matched_products(matches):
+    products = {}
+    for match in matches:
+        item = products.setdefault(match.produit_id, {'product': match.produit, 'references': []})
+        item['references'].append(match.reference)
+    return list(products.values())
 
 
 def match_record(source, record_type, reference):
     reference, entries = DolibarrClient(source).read_record(record_type, reference)
     references = {entry['reference'] for entry in entries if entry['reference']}
     matches = {}
-    for product in matching_products(references):
-        matches.setdefault(product.reference_dolibarr, []).append(product)
+    for match in matching_references(references):
+        matches.setdefault(match.reference, []).append(match)
     selected, issues, matched_lines = {}, [], 0
     for entry in entries:
         candidates = matches.get(entry['reference'], [])
@@ -133,10 +141,11 @@ def match_record(source, record_type, reference):
         elif not candidates:
             issues.append({**entry, 'reason': 'Aucune correspondance dans SERSI Notices.'})
         elif len(candidates) > 1:
-            issues.append({**entry, 'reason': 'Plusieurs produits correspondent à cette référence : ' + ', '.join(product.reference for product in candidates)})
+            issues.append({**entry, 'reason': 'Plusieurs produits correspondent à cette référence : ' + ', '.join(match.produit.reference for match in candidates)})
         else:
-            product = candidates[0]
-            selected[product.pk] = product
+            match = candidates[0]
+            selected[(match.produit_id, match.reference)] = match
             matched_lines += 1
-    return {'reference': reference, 'products': list(selected.values()), 'issues': issues,
+    return {'reference': reference, 'products': group_matched_products(selected.values()),
+            'product_map': list(selected), 'issues': issues,
             'line_count': len(entries), 'matched_lines': matched_lines}

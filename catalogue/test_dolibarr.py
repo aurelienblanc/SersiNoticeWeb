@@ -129,8 +129,9 @@ class DolibarrImportTests(TestCase):
         folder = DossierCible.objects.create(nom='Notices', chemin_relatif='Notices')
         self.products = []
         for number in (1, 2):
-            product = Produit.objects.create(reference=f'LOCAL-{number}', reference_dolibarr=f'ERP-{number}',
+            product = Produit.objects.create(reference=f'LOCAL-{number}',
                 nom=f'Produit {number}', marque=brand, categorie=category, actif=number == 1)
+            product.references_dolibarr.create(reference=f'ERP-{number}')
             product.systemes.add(system)
             document = Document.objects.create(nom=f'Notice {number}', type_document=kind)
             document.fichier.save(f'notice-{number}.pdf', ContentFile(b'%PDF-1.4\nERP fixture'))
@@ -154,14 +155,15 @@ class DolibarrImportTests(TestCase):
 
     def test_matches_duplicate_lines_once_and_reports_missing_ambiguous_and_free_lines(self):
         duplicate = self.products[0]
-        Produit.objects.create(reference='OTHER', reference_dolibarr='ERP-1', nom='Autre produit',
-                               marque=duplicate.marque, categorie=duplicate.categorie)
+        other = Produit.objects.create(reference='OTHER', nom='Autre produit',
+                                       marque=duplicate.marque, categorie=duplicate.categorie)
+        other.references_dolibarr.create(reference='ERP-1')
         self.read_record.return_value = ('PR-TEST', self.lines + [self.lines[1],
             {'line': 4, 'reference': 'MISSING', 'label': 'Sans correspondance'},
             {'line': 5, 'reference': '', 'label': 'Titre', 'reason': 'Ligne libre'},
         ])
         report = match_record(self.source, DolibarrRecordType.PROPOSAL, 'PR-TEST')
-        self.assertEqual(report['products'], [self.products[1]])
+        self.assertEqual(report['products'], [{'product': self.products[1], 'references': ['ERP-2']}])
         self.assertEqual(report['matched_lines'], 2)
         self.assertEqual(len(report['issues']), 3)
         self.assertIn('Plusieurs produits', report['issues'][0]['reason'])
@@ -185,9 +187,15 @@ class DolibarrImportTests(TestCase):
         self.read_record.assert_called_once_with(DolibarrRecordType.PROPOSAL, 'PR-TEST')
 
     def test_order_keeps_its_type_and_reference_when_retrying_preparation(self):
-        self.read_record.return_value = ('CO-TEST', self.lines[:1])
+        alias = self.products[0].references_dolibarr.create(reference='ERP-1-BIS')
+        self.read_record.return_value = ('CO-TEST', self.lines[:1] + [
+            {'line': 2, 'reference': alias.reference, 'label': 'Même produit'},
+        ])
         response = self.load(record_type='orders', reference='CO-TEST')
         self.assertContains(response, 'Commande client CO-TEST')
+        self.assertContains(response, 'ERP-1, ERP-1-BIS')
+        self.assertEqual(response.context['report']['matched_lines'], 2)
+        self.assertEqual(len(response.context['report']['products']), 1)
         self.assertEqual(response.context['selection_form'].initial['projet'], 'CO-TEST')
         self.read_record.assert_called_once_with(DolibarrRecordType.ORDER, 'CO-TEST')
         token = response.context['token']
@@ -195,7 +203,10 @@ class DolibarrImportTests(TestCase):
         self.assertContains(retry, 'Commande client CO-TEST', status_code=400)
         preview = self.preparation(token, projet='CO-TEST')
         self.assertEqual(preview.status_code, 200)
+        self.assertEqual(len(preview.context['plan'].fichiers), 1)
         self.assertEqual(preview.context['nom_archive'], 'Client test - CO-TEST.zip')
+        alias.delete()
+        self.assertEqual(self.preparation(token, projet='CO-TEST').status_code, 409)
 
     def test_unmatched_lines_require_explicit_confirmation_on_the_server(self):
         self.read_record.return_value = ('PR-TEST', self.lines + [{'line': 3, 'reference': 'MISSING', 'label': 'À vérifier'}])
@@ -208,8 +219,7 @@ class DolibarrImportTests(TestCase):
 
     def test_a_changed_mapping_or_tampered_token_cannot_prepare_a_dossier(self):
         token = self.load().context['token']
-        self.products[0].reference_dolibarr = 'CHANGED'
-        self.products[0].save(update_fields=['reference_dolibarr'])
+        self.products[0].references_dolibarr.update(reference='CHANGED')
         self.assertEqual(self.preparation(token).status_code, 409)
         self.assertEqual(self.preparation(token + 'tampered').status_code, 409)
 
@@ -219,8 +229,9 @@ class DolibarrImportTests(TestCase):
         self.read_record.return_value = ('PR-TEST', self.lines[:1])
         first = self.load()
         second = self.load(other)
-        self.assertEqual(first.context['report']['products'], [self.products[0]])
-        self.assertEqual(second.context['report']['products'], [self.products[0]])
+        expected = [{'product': self.products[0], 'references': ['ERP-1']}]
+        self.assertEqual(first.context['report']['products'], expected)
+        self.assertEqual(second.context['report']['products'], expected)
         self.assertContains(second, 'Autre ERP')
         self.assertNotContains(second, 'other-key')
         self.assertNotContains(second, url)

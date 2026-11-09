@@ -10,7 +10,7 @@ from .dolibarr_config import decrypt_key
 from .dolibarr_forms import DolibarrSourceForm
 from .models import (
     Categorie, Document, DolibarrSource, DossierCible,
-    ExportRecord, Marque, Produit, Systeme, TypeDocument, TypeExport,
+    ExportRecord, Marque, Produit, ReferenceDolibarr, Systeme, TypeDocument, TypeExport,
 )
 from .admin_site import admin_site
 
@@ -94,18 +94,31 @@ class DolibarrSourceAdmin(admin.ModelAdmin):
         return super().changeform_view(request, object_id, form_url, extra_context)
 
 
+class ReferenceDolibarrInline(admin.TabularInline):
+    model = ReferenceDolibarr
+    extra = 1
+
+
 @admin.register(Produit, site=admin_site)
 class ProduitAdmin(admin.ModelAdmin):
-    list_display = ['reference', 'reference_dolibarr', 'nom', 'marque', 'categorie', 'actif']
+    list_display = ['reference', 'references_dolibarr_affichees', 'nom', 'marque', 'categorie', 'actif']
     list_filter = ['actif', 'systemes', 'marque', 'categorie']
-    search_fields = ['reference', 'reference_dolibarr', 'nom', 'description']
+    search_fields = ['reference', 'references_dolibarr__reference', 'nom', 'description']
     filter_horizontal = ['systemes', 'documents']
     list_select_related = ['marque', 'categorie']
+    inlines = [ReferenceDolibarrInline]
     fieldsets = [
-        ('Identification du produit', {'fields': ['reference', 'reference_dolibarr', 'nom', 'marque', 'categorie', 'actif']}),
+        ('Identification du produit', {'fields': ['reference', 'nom', 'marque', 'categorie', 'actif']}),
         ('Systèmes et documentation', {'fields': ['systemes', 'documents']}),
         ('Description', {'fields': ['description'], 'classes': ['collapse']}),
     ]
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related('references_dolibarr')
+
+    @admin.display(description='Références Dolibarr')
+    def references_dolibarr_affichees(self, produit):
+        return ', '.join(reference.reference for reference in produit.references_dolibarr.all())
 
 
 @admin.register(ExportRecord, site=admin_site)

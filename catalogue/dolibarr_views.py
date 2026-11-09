@@ -3,7 +3,9 @@ from django.shortcuts import render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST
 
-from .dolibarr import DolibarrError, DolibarrRecordType, match_record, matching_products, source_fingerprint
+from .dolibarr import (
+    DolibarrError, DolibarrRecordType, group_matched_products, match_record, matching_references, source_fingerprint,
+)
 from .dolibarr_forms import DolibarrLookupForm, DolibarrSelectionForm
 from .forms import SelectionForm
 from .journal import record_event
@@ -32,11 +34,10 @@ def record_lookup(request):
     if report is None:
         return render(request, 'catalogue/dolibarr.html', {'lookup_form': form},
                       status=400 if request.method == 'POST' else 200)
-    payload = {key: report[key] for key in ('reference', 'issues', 'line_count', 'matched_lines')}
+    payload = {key: report[key] for key in ('reference', 'issues', 'line_count', 'matched_lines', 'product_map')}
     payload['source_id'] = source.pk
     payload['source'] = source_fingerprint(source)
     payload['record_type'] = record_type.value
-    payload['product_map'] = [[product.pk, product.reference_dolibarr] for product in report['products']]
     token = signing.dumps(payload, salt=IMPORT_SALT, compress=True)
     selection_form = DolibarrSelectionForm(initial={
         'projet': report['reference'], 'types_export': list(TypeExport.objects.values_list('pk', flat=True)),
@@ -59,12 +60,12 @@ def record_preview(request):
         source = DolibarrSource.available().defer('cle_chiffree').get(pk=payload['source_id'])
         record_type = DolibarrRecordType(payload.get('record_type', DolibarrRecordType.PROPOSAL))
         references = [reference for _, reference in payload['product_map']]
-        products = list(matching_products(references))
-        current = sorted([[product.pk, product.reference_dolibarr] for product in products])
-        if payload['source'] != source_fingerprint(source) or not products or current != sorted(payload['product_map']):
+        matches = list(matching_references(references))
+        current = sorted([[match.produit_id, match.reference] for match in matches])
+        if payload['source'] != source_fingerprint(source) or not matches or current != sorted(payload['product_map']):
             raise ValueError
         report = {key: payload[key] for key in ('reference', 'issues', 'line_count', 'matched_lines')}
-        report['products'] = products
+        report['products'] = group_matched_products(matches)
     except (signing.BadSignature, DolibarrSource.DoesNotExist, ValueError, TypeError, KeyError):
         return render(request, 'catalogue/error.html', {
             'message': 'Le récapitulatif a expiré ou ses correspondances ont changé. Rechargez le document depuis Dolibarr.',
@@ -76,6 +77,7 @@ def record_preview(request):
             'token': request.POST.get('import_token'), 'selection_form': form,
         }, status=400)
     data = form.cleaned_data
+    products = [item['product'] for item in report['products']]
     selection_form = SelectionForm({
         'produits': [product.pk for product in products],
         'types_export': list(data['types_export'].values_list('pk', flat=True)),
