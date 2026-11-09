@@ -3,8 +3,15 @@ from django.contrib import admin
 from django.db import models
 from django.urls import reverse
 from django.utils.html import format_html
+from django.utils.decorators import method_decorator
+from django.views.decorators.debug import sensitive_post_parameters
 
-from .models import Categorie, Document, DossierCible, ExportRecord, Marque, Produit, Systeme, TypeDocument, TypeExport
+from .dolibarr_config import decrypt_key
+from .dolibarr_forms import DolibarrSourceForm
+from .models import (
+    Categorie, Document, DolibarrSource, DossierCible,
+    ExportRecord, Marque, Produit, ReferenceDolibarr, Systeme, TypeDocument, TypeExport,
+)
 from .admin_site import admin_site
 
 
@@ -71,18 +78,47 @@ class DocumentAdmin(admin.ModelAdmin):
         return format_html('<a href="{}">{}</a>', reverse('download_document', args=[obj.pk]), obj.nom_fichier or obj.nom)
 
 
+@admin.register(DolibarrSource, site=admin_site)
+class DolibarrSourceAdmin(admin.ModelAdmin):
+    form = DolibarrSourceForm
+    list_display = ['nom', 'url', 'active', 'cle_enregistree']
+    search_fields = ['nom', 'url']
+    list_filter = ['active']
+
+    @admin.display(description='Clé API enregistrée', boolean=True)
+    def cle_enregistree(self, source):
+        return bool(decrypt_key(source.url, source.cle_chiffree))
+
+    @method_decorator(sensitive_post_parameters('cle_api'))
+    def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
+        return super().changeform_view(request, object_id, form_url, extra_context)
+
+
+class ReferenceDolibarrInline(admin.TabularInline):
+    model = ReferenceDolibarr
+    extra = 1
+
+
 @admin.register(Produit, site=admin_site)
 class ProduitAdmin(admin.ModelAdmin):
-    list_display = ['reference', 'nom', 'marque', 'categorie', 'actif']
+    list_display = ['reference', 'references_dolibarr_affichees', 'nom', 'marque', 'categorie', 'actif']
     list_filter = ['actif', 'systemes', 'marque', 'categorie']
-    search_fields = ['reference', 'nom', 'description']
+    search_fields = ['reference', 'references_dolibarr__reference', 'nom', 'description']
     filter_horizontal = ['systemes', 'documents']
     list_select_related = ['marque', 'categorie']
+    inlines = [ReferenceDolibarrInline]
     fieldsets = [
         ('Identification du produit', {'fields': ['reference', 'nom', 'marque', 'categorie', 'actif']}),
         ('Systèmes et documentation', {'fields': ['systemes', 'documents']}),
         ('Description', {'fields': ['description'], 'classes': ['collapse']}),
     ]
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related('references_dolibarr')
+
+    @admin.display(description='Références Dolibarr')
+    def references_dolibarr_affichees(self, produit):
+        return ', '.join(reference.reference for reference in produit.references_dolibarr.all())
 
 
 @admin.register(ExportRecord, site=admin_site)
