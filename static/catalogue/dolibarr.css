@@ -21,8 +21,10 @@
   gap: 18px;
   margin-top: 20px;
 }
-.proposal-number {
-  flex: 1 1 260px;
+.proposal-number,
+.proposal-source {
+  flex: 1 1 200px;
+  min-width: 0;
 }
 .proposal-lookup-form .alert {
   flex-basis: 100%;
@@ -85,6 +87,7 @@
   margin-top: 20px;
 }
 .proposal-selection-form .field-grid label,
+.proposal-source label,
 .proposal-number label {
   display: block;
   margin-bottom: 8px;

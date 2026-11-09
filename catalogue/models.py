@@ -142,10 +142,6 @@ class Document(models.Model):
 
 class Produit(models.Model):
     reference = models.CharField('référence', max_length=255, unique=True)
-    reference_dolibarr = models.CharField(
-        'référence Dolibarr', max_length=255, blank=True, default='', db_index=True,
-        help_text='Référence exacte du produit dans Dolibarr pour retrouver ses notices depuis une proposition commerciale.',
-    )
     nom = models.CharField('nom', max_length=500)
     description = models.TextField(blank=True)
     marque = models.ForeignKey(Marque, on_delete=models.PROTECT)
@@ -159,6 +155,40 @@ class Produit(models.Model):
 
     def __str__(self):
         return f'{self.reference} · {self.nom}'
+
+
+class DolibarrSource(models.Model):
+    nom = models.CharField('nom', max_length=200)
+    url = models.URLField('adresse de Dolibarr', max_length=2000, unique=True, blank=True)
+    active = models.BooleanField('active', default=True)
+    cle_chiffree = models.TextField(blank=True, editable=False, serialize=False)
+
+    class Meta:
+        ordering = ['nom', 'pk']
+        verbose_name = 'source Dolibarr'
+        verbose_name_plural = 'sources Dolibarr'
+
+    def __str__(self):
+        return self.nom
+
+    @classmethod
+    def available(cls):
+        return cls.objects.filter(active=True).exclude(url='').exclude(cle_chiffree='')
+
+
+class DolibarrReference(models.Model):
+    produit = models.ForeignKey(Produit, on_delete=models.CASCADE, related_name='references_dolibarr')
+    source = models.ForeignKey(DolibarrSource, on_delete=models.CASCADE, verbose_name='source Dolibarr')
+    reference = models.CharField('référence dans Dolibarr', max_length=255)
+
+    class Meta:
+        verbose_name = 'référence Dolibarr'
+        verbose_name_plural = 'références Dolibarr'
+        constraints = [models.UniqueConstraint(fields=['produit', 'source'], name='unique_dolibarr_source_per_product')]
+        indexes = [models.Index(fields=['source', 'reference'], name='dolibarr_source_reference_idx')]
+
+    def __str__(self):
+        return f'{self.source} · {self.reference}'
 
 
 class ExportRecord(models.Model):

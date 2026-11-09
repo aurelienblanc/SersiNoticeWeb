@@ -11,12 +11,18 @@ from django.core.files.base import ContentFile
 from django.test import Client, SimpleTestCase, TestCase, override_settings
 
 from .dolibarr import DolibarrClient, DolibarrError, NoRedirect, match_proposal
-from .models import Categorie, Document, DossierCible, Marque, Produit, Systeme, TypeDocument, TypeExport
+from .dolibarr_config import encrypt_key, legacy_connection
+from .models import (
+    Categorie, Document, DolibarrReference, DolibarrSource, DossierCible, Marque,
+    Produit, Systeme, TypeDocument, TypeExport,
+)
 
 
-@override_settings(SERSI_DOLIBARR_URL='https://erp.example.test/doli',
-                   SERSI_DOLIBARR_API_KEY='test-api-key-only', SERSI_DOLIBARR_API_KEY_FILE='')
 class DolibarrClientTests(SimpleTestCase):
+    def setUp(self):
+        url = 'https://erp.example.test/doli'
+        self.source = DolibarrSource(url=url, cle_chiffree=encrypt_key(url, 'test-api-key-only'))
+
     @patch('catalogue.dolibarr.build_opener')
     def test_client_only_reads_and_fetches_each_product_once(self, factory):
         factory.return_value.open.side_effect = [
@@ -25,7 +31,7 @@ class DolibarrClientTests(SimpleTestCase):
             ]}).encode()),
             io.BytesIO(b'{"ref":"ERP-001"}'),
         ]
-        reference, lines = DolibarrClient().proposal('PR-TEST')
+        reference, lines = DolibarrClient(self.source).proposal('PR-TEST')
         self.assertEqual(reference, 'PR-TEST')
         self.assertEqual([line['reference'] for line in lines], ['ERP-001', 'ERP-001', ''])
         self.assertEqual(lines[0]['label'], 'Produit')
@@ -47,46 +53,52 @@ class DolibarrClientTests(SimpleTestCase):
             with self.subTest(error=type(failure).__name__):
                 factory.return_value.open.side_effect = failure
                 with self.assertRaises(DolibarrError) as error:
-                    DolibarrClient().get_json('/proposals/ref/PR-TEST')
+                    DolibarrClient(self.source).get_json('/proposals/ref/PR-TEST')
                 self.assertNotIn('test-api-key-only', str(error.exception))
         factory.return_value.open.side_effect = None
         factory.return_value.open.return_value = io.BytesIO(b'<html>login</html>')
         with self.assertRaises(DolibarrError):
-            DolibarrClient().get_json('/proposals/ref/PR-TEST')
+            DolibarrClient(self.source).get_json('/proposals/ref/PR-TEST')
         self.assertIsNone(NoRedirect().redirect_request(None, None, 302, '', {}, 'https://other.example'))
 
     @patch('catalogue.dolibarr.build_opener')
     def test_payload_size_deadline_and_proposal_identity_are_checked(self, factory):
         factory.return_value.open.return_value = io.BytesIO(b'x' * 40)
         with patch('catalogue.dolibarr.MAX_RESPONSE_BYTES', 32), self.assertRaises(DolibarrError):
-            DolibarrClient().get_json('/proposals/ref/PR-TEST')
+            DolibarrClient(self.source).get_json('/proposals/ref/PR-TEST')
         with patch('catalogue.dolibarr.time.monotonic', return_value=100):
-            client = DolibarrClient()
+            client = DolibarrClient(self.source)
         with patch('catalogue.dolibarr.time.monotonic', return_value=200), self.assertRaises(DolibarrError):
             client.get_json('/proposals/ref/PR-TEST')
         factory.return_value.open.return_value = io.BytesIO(b'{"ref":"OTHER","lines":[]}')
         with self.assertRaises(DolibarrError):
-            DolibarrClient().proposal('PR-TEST')
+            DolibarrClient(self.source).proposal('PR-TEST')
 
     def test_key_can_be_read_from_a_local_file_and_invalid_configuration_is_rejected(self):
         with tempfile.TemporaryDirectory(dir=settings.RUNTIME_DIR) as directory:
             path = Path(directory) / 'api.key'
             path.write_text('local-file-test-key\n', encoding='utf-8')
-            with override_settings(SERSI_DOLIBARR_API_KEY='', SERSI_DOLIBARR_API_KEY_FILE=str(path)):
-                self.assertEqual(DolibarrClient().key, 'local-file-test-key')
+            with override_settings(SERSI_DOLIBARR_URL=self.source.url, SERSI_DOLIBARR_API_KEY='',
+                                   SERSI_DOLIBARR_API_KEY_FILE=str(path)):
+                self.assertEqual(legacy_connection(), (self.source.url, 'local-file-test-key'))
         for url in ('', 'ftp://erp.example', 'https://user:password@erp.example', 'https://erp.example?x=1'):
-            with self.subTest(url=url), override_settings(SERSI_DOLIBARR_URL=url), self.assertRaises(DolibarrError):
-                DolibarrClient()
+            with self.subTest(url=url), self.assertRaises(DolibarrError):
+                DolibarrClient(DolibarrSource(url=url))
+        self.source.url = 'https://other.example.test'
+        with self.assertRaises(DolibarrError):
+            DolibarrClient(self.source)
 
 
-@override_settings(SERSI_DOLIBARR_URL='https://erp.example.test', SERSI_DOLIBARR_NAME='ERP test',
-                   SERSI_DOLIBARR_API_KEY='not-for-the-browser', SERSI_DOLIBARR_API_KEY_FILE='',
-                   STORAGES={
+@override_settings(STORAGES={
                        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
                        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
                    })
 class DolibarrImportTests(TestCase):
     def setUp(self):
+        url = 'https://erp.example.test'
+        self.source = DolibarrSource.objects.create(
+            nom='ERP test', url=url, cle_chiffree=encrypt_key(url, 'not-for-the-browser'),
+        )
         directory = tempfile.TemporaryDirectory(dir=settings.RUNTIME_DIR)
         self.addCleanup(directory.cleanup)
         storage = override_settings(MEDIA_ROOT=Path(directory.name))
@@ -100,8 +112,9 @@ class DolibarrImportTests(TestCase):
         folder = DossierCible.objects.create(nom='Notices', chemin_relatif='Notices')
         self.products = []
         for number in (1, 2):
-            product = Produit.objects.create(reference=f'LOCAL-{number}', reference_dolibarr=f'ERP-{number}',
+            product = Produit.objects.create(reference=f'LOCAL-{number}',
                 nom=f'Produit {number}', marque=brand, categorie=category, actif=number == 1)
+            DolibarrReference.objects.create(produit=product, source=self.source, reference=f'ERP-{number}')
             product.systemes.add(system)
             document = Document.objects.create(nom=f'Notice {number}', type_document=kind)
             document.fichier.save(f'notice-{number}.pdf', ContentFile(b'%PDF-1.4\nERP fixture'))
@@ -114,8 +127,8 @@ class DolibarrImportTests(TestCase):
         self.proposal = self.remote.start()
         self.addCleanup(self.remote.stop)
 
-    def load(self):
-        return self.client.post('/dolibarr/', {'reference': 'PR-TEST'})
+    def load(self, source=None):
+        return self.client.post('/dolibarr/', {'reference': 'PR-TEST', 'source': (source or self.source).pk})
 
     def preparation(self, token, **extra):
         return self.client.post('/dolibarr/preparer/', {
@@ -125,14 +138,15 @@ class DolibarrImportTests(TestCase):
 
     def test_matches_duplicate_lines_once_and_reports_missing_ambiguous_and_free_lines(self):
         duplicate = self.products[0]
-        Produit.objects.create(reference='OTHER', reference_dolibarr='ERP-1', nom='Autre produit',
-                               marque=duplicate.marque, categorie=duplicate.categorie)
+        other = Produit.objects.create(reference='OTHER', nom='Autre produit',
+                                      marque=duplicate.marque, categorie=duplicate.categorie)
+        DolibarrReference.objects.create(produit=other, source=self.source, reference='ERP-1')
         self.proposal.return_value = ('PR-TEST', self.lines + [self.lines[1],
             {'line': 4, 'reference': 'MISSING', 'label': 'Sans correspondance'},
             {'line': 5, 'reference': '', 'label': 'Titre', 'reason': 'Ligne libre'},
         ])
-        report = match_proposal('PR-TEST')
-        self.assertEqual([product.pk for product in report['products']], [self.products[1].pk])
+        report = match_proposal(self.source, 'PR-TEST')
+        self.assertEqual([match.produit_id for match in report['matches']], [self.products[1].pk])
         self.assertEqual(report['matched_lines'], 2)
         self.assertEqual(len(report['issues']), 3)
         self.assertIn('Plusieurs produits', report['issues'][0]['reason'])
@@ -166,10 +180,29 @@ class DolibarrImportTests(TestCase):
 
     def test_a_changed_mapping_or_tampered_token_cannot_prepare_a_dossier(self):
         token = self.load().context['token']
-        self.products[0].reference_dolibarr = 'CHANGED'
-        self.products[0].save(update_fields=['reference_dolibarr'])
+        self.products[0].references_dolibarr.update(reference='CHANGED')
         self.assertEqual(self.preparation(token).status_code, 409)
         self.assertEqual(self.preparation(token + 'tampered').status_code, 409)
+
+    def test_same_reference_matches_only_the_selected_source(self):
+        url = 'https://erp-two.example.test'
+        other = DolibarrSource.objects.create(nom='Autre ERP', url=url, cle_chiffree=encrypt_key(url, 'other-key'))
+        DolibarrReference.objects.create(produit=self.products[1], source=other, reference='ERP-1')
+        self.proposal.return_value = ('PR-TEST', self.lines[:1])
+        first = self.load()
+        second = self.load(other)
+        self.assertEqual(first.context['report']['matches'][0].produit_id, self.products[0].pk)
+        self.assertEqual(second.context['report']['matches'][0].produit_id, self.products[1].pk)
+        self.assertContains(second, 'Autre ERP')
+        self.assertNotContains(second, 'other-key')
+        self.assertNotContains(second, url)
+        self.assertEqual(len(self.preparation(second.context['token']).context['plan'].fichiers), 1)
+        other.active = False
+        other.save(update_fields=['active'])
+        self.assertEqual(self.preparation(second.context['token']).status_code, 409)
+        self.assertEqual(self.load(other).status_code, 400)
+        self.assertNotContains(self.client.get('/dolibarr/'), 'Autre ERP')
+        self.assertEqual(self.proposal.call_count, 2)
 
     def test_empty_matches_errors_methods_and_csrf_are_handled(self):
         csrf = Client(enforce_csrf_checks=True)

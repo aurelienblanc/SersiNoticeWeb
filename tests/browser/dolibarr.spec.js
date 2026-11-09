@@ -5,6 +5,7 @@ test('une proposition reconnue prépare les notices et télécharge le ZIP', asy
 }, testInfo) => {
   await page.goto('/');
   await page.getByRole('link', { name: 'Charger depuis Dolibarr' }).click();
+  await page.getByLabel('Source Dolibarr').selectOption({ label: 'ERP de test' });
   await page.getByLabel('Numéro de proposition', { exact: true }).fill('PR-OK');
   await page.getByRole('button', { name: 'Charger les produits' }).click();
   await expect(page.getByRole('heading', { name: 'Proposition PR-OK', exact: true })).toBeVisible();
@@ -24,6 +25,7 @@ test('les lignes sans correspondance sont visibles et demandent une confirmation
   page,
 }) => {
   await page.goto('/dolibarr/');
+  await page.getByLabel('Source Dolibarr').selectOption({ label: 'ERP de test' });
   await page.getByLabel('Numéro de proposition', { exact: true }).fill('PR-PARTIAL');
   await page.getByRole('button', { name: 'Charger les produits' }).click();
   await page.locator('.proposal-issues summary').click();
@@ -38,5 +40,43 @@ test('les lignes sans correspondance sont visibles et demandent une confirmation
   await confirmation.check();
   await page.getByRole('button', { name: 'Préparer le dossier', exact: true }).click();
   await expect(page.locator('#archive-list .file-row')).toHaveCount(1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('la même proposition peut désigner un autre produit selon la source', async ({ page }) => {
+  await page.goto('/dolibarr/');
+  await page.getByLabel('Source Dolibarr').selectOption({ label: 'Autre ERP de test' });
+  await page.getByLabel('Numéro de proposition').fill('PR-OK');
+  await page.getByRole('button', { name: 'Charger les produits' }).click();
+  await expect(page.getByText('Autre ERP de test', { exact: true })).toBeVisible();
+  await expect(page.locator('.proposal-products li strong')).toHaveText(['BB-4']);
+});
+
+test('l’administration permet de créer une source et de retrouver les références par ERP', async ({
+  page,
+}, testInfo) => {
+  await page.goto('/admin/login/');
+  await page
+    .getByLabel('Mot de passe commun', { exact: true })
+    .fill('Browser-test-only-password-2026!');
+  await page.getByRole('button', { name: 'Accéder à l’administration' }).click();
+  await page.getByRole('link', { name: 'Sources Dolibarr', exact: true }).click();
+  await page.getByRole('link', { name: /Ajouter source Dolibarr/i }).click();
+  await page.getByLabel('Nom :', { exact: true }).fill(`ERP brouillon ${testInfo.project.name}`);
+  await page
+    .getByLabel('Adresse de Dolibarr')
+    .fill(`https://erp-${testInfo.project.name}.example.test`);
+  await page.getByLabel('Active', { exact: true }).uncheck();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  await expect(
+    page.locator('#result_list').getByRole('link', {
+      name: `ERP brouillon ${testInfo.project.name}`,
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page.goto('/admin/catalogue/produit/2/change/');
+  await expect(page.getByRole('heading', { name: 'Références Dolibarr' })).toBeVisible();
+  await expect(page.locator('input[name="references_dolibarr-0-reference"]')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

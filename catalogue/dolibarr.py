@@ -2,15 +2,15 @@
 import hashlib
 import json
 import time
-from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote, urlsplit
+from urllib.parse import quote
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.utils.html import strip_tags
 
-from .models import Produit
+from .dolibarr_config import decrypt_key, valid_api_key, validate_connection_url
+from .models import DolibarrReference
 
 MAX_RESPONSE_BYTES = 4 * 1024 * 1024
 MAX_LINES = 500
@@ -26,8 +26,8 @@ class NoRedirect(HTTPRedirectHandler):
         return None
 
 
-def source_fingerprint():
-    return hashlib.sha256(settings.SERSI_DOLIBARR_URL.rstrip('/').encode()).hexdigest()
+def source_fingerprint(source):
+    return hashlib.sha256(source.url.encode()).hexdigest()
 
 
 def _object_id(value):
@@ -40,24 +40,14 @@ def _object_id(value):
 
 
 class DolibarrClient:
-    def __init__(self):
-        url = settings.SERSI_DOLIBARR_URL.rstrip('/')
+    def __init__(self, source):
         try:
-            parts = urlsplit(url)
-            parts.port
-        except ValueError:
+            url = validate_connection_url(source.url)
+        except ValidationError:
             raise DolibarrError('L’adresse de connexion Dolibarr est invalide.') from None
-        if parts.scheme not in ('https', 'http') or not parts.hostname or parts.username or parts.password or parts.query or parts.fragment:
-            raise DolibarrError('La connexion Dolibarr doit être configurée par un administrateur.')
-        self.base_url = url if url.endswith('/api/index.php') else url + '/api/index.php'
-        self.key = settings.SERSI_DOLIBARR_API_KEY
-        if not self.key and settings.SERSI_DOLIBARR_API_KEY_FILE:
-            try:
-                with Path(settings.SERSI_DOLIBARR_API_KEY_FILE).open('r', encoding='utf-8') as stream:
-                    self.key = stream.read(8193).strip()
-            except (OSError, UnicodeError):
-                raise DolibarrError('La clé API Dolibarr doit être configurée par un administrateur.') from None
-        if not self.key or len(self.key) > 8192 or any(ord(char) < 33 or ord(char) > 126 for char in self.key):
+        self.base_url = url + '/api/index.php'
+        self.key = decrypt_key(url, source.cle_chiffree)
+        if not valid_api_key(self.key):
             raise DolibarrError('La clé API Dolibarr doit être configurée par un administrateur.')
         self.opener = build_opener(NoRedirect())
         self.deadline = time.monotonic() + TOTAL_TIMEOUT
@@ -114,12 +104,18 @@ class DolibarrClient:
         return proposal['ref'], entries
 
 
-def match_proposal(reference):
-    reference, entries = DolibarrClient().proposal(reference)
+def reference_matches(source, references):
+    return DolibarrReference.objects.filter(source=source, reference__in=references).select_related(
+        'produit__marque', 'produit__categorie',
+    ).order_by('produit__reference')
+
+
+def match_proposal(source, reference):
+    reference, entries = DolibarrClient(source).proposal(reference)
     references = {entry['reference'] for entry in entries if entry['reference']}
     matches = {}
-    for product in Produit.objects.filter(reference_dolibarr__in=references).select_related('marque', 'categorie').order_by('reference'):
-        matches.setdefault(product.reference_dolibarr, []).append(product)
+    for match in reference_matches(source, references):
+        matches.setdefault(match.reference, []).append(match)
     selected, issues, matched_lines = {}, [], 0
     for entry in entries:
         candidates = matches.get(entry['reference'], [])
@@ -128,10 +124,10 @@ def match_proposal(reference):
         elif not candidates:
             issues.append({**entry, 'reason': 'Aucune correspondance dans SERSI Notices.'})
         elif len(candidates) > 1:
-            issues.append({**entry, 'reason': 'Plusieurs produits correspondent à cette référence : ' + ', '.join(product.reference for product in candidates)})
+            issues.append({**entry, 'reason': 'Plusieurs produits correspondent à cette référence : ' + ', '.join(match.produit.reference for match in candidates)})
         else:
-            product = candidates[0]
-            selected[product.pk] = product
+            match = candidates[0]
+            selected[match.produit_id] = match
             matched_lines += 1
-    return {'reference': reference, 'products': list(selected.values()), 'issues': issues,
+    return {'reference': reference, 'matches': list(selected.values()), 'issues': issues,
             'line_count': len(entries), 'matched_lines': matched_lines}

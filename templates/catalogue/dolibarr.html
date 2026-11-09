@@ -6,26 +6,31 @@
 {% block page_label %}Depuis une proposition{% endblock %}
 {% block extrahead %}
   <link rel="stylesheet"
-        href="{% static 'catalogue/dolibarr.css' %}?v=20261103-1">
+        href="{% static 'catalogue/dolibarr.css' %}?v=20261109-1">
 {% endblock %}
 {% block content %}
   <a class="icon-link back-link"
      href="{% url 'index' %}">{% include "shared/icon.html" with name="arrow-left" only %} Dossier documentaire</a>
   <div class="page-heading">
     <div>
-      <span class="eyebrow">{{ erp_name }}</span>
+      <span class="eyebrow">{{ source.nom|default:"Dolibarr" }}</span>
       <h1>Un dossier depuis votre proposition<span class="accent">.</span></h1>
       <p>Retrouvez automatiquement les notices des produits de votre proposition commerciale.</p>
     </div>
     <div class="heading-icon">{% include "shared/icon.html" with name="file-plus" only %}</div>
   </div>
-  {% if lookup_form %}
+  {% if lookup_form.has_sources %}
     <section class="panel dolibarr-panel">
       <h2>Charger la proposition</h2>
       <form method="post"
             action="{% url 'dolibarr_lookup' %}"
             class="proposal-lookup-form">
         {% csrf_token %}
+        <div class="proposal-source">
+          <label for="{{ lookup_form.source.id_for_label }}">{{ lookup_form.source.label }}</label>
+          {{ lookup_form.source }}
+          {{ lookup_form.source.errors }}
+        </div>
         <div class="proposal-number">
           <label for="{{ lookup_form.reference.id_for_label }}">{{ lookup_form.reference.label }}</label>
           {{ lookup_form.reference }}
@@ -34,6 +39,11 @@
         <button type="submit" class="icon-link button primary">{% include "shared/icon.html" with name="search" only %} Charger les produits</button>
         {% if lookup_form.non_field_errors %}<div class="alert error" role="alert">{{ lookup_form.non_field_errors }}</div>{% endif %}
       </form>
+    </section>
+  {% elif lookup_form %}
+    <section class="panel dolibarr-panel">
+      <p>Aucune source Dolibarr active. Les sources se configurent dans l’administration.</p>
+      <a href="{% url 'admin:catalogue_dolibarrsource_changelist' %}">Sources Dolibarr</a>
     </section>
   {% endif %}
   {% if report %}
@@ -64,8 +74,10 @@
       </dl>
       <h3>Produits pour le dossier</h3>
       <ul class="proposal-products">
-        {% for product in report.products %}
-          <li><strong>{{ product.reference }}</strong><span>{{ product.nom }} · {{ product.marque.nom }}{% if not product.actif %} · Inactif{% endif %}</span><small>Dolibarr : {{ product.reference_dolibarr }}</small></li>
+        {% for match in report.matches %}
+          {% with product=match.produit %}
+            <li><strong>{{ product.reference }}</strong><span>{{ product.nom }} · {{ product.marque.nom }}{% if not product.actif %} · Inactif{% endif %}</span><small>Dolibarr : {{ match.reference }}</small></li>
+          {% endwith %}
         {% empty %}
           <li>Aucun produit reconnu. Renseignez les références Dolibarr dans les fiches produits, puis rechargez la proposition.</li>
         {% endfor %}
@@ -84,7 +96,7 @@
            href="{% url 'admin:catalogue_produit_changelist' %}">{% include "shared/icon.html" with name="square-pen" only %} Renseigner les correspondances dans l’administration</a>
       {% endif %}
     </section>
-    {% if report.products %}
+    {% if report.matches %}
       <section class="panel dolibarr-panel">
         <h2>Préparer le dossier</h2>
         <form method="post"

@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.core import signing
 from django.core.exceptions import ValidationError
 from django.db.models import Count
@@ -11,7 +10,7 @@ from django.views.decorators.http import require_GET, require_POST
 from .exports import archive_filename, build_archive_tree, build_plan, create_archive
 from .forms import SelectionForm
 from .journal import record_event
-from .models import Categorie, Document, ExportRecord, Marque, Produit, Systeme, TypeExport
+from .models import Categorie, Document, DolibarrSource, ExportRecord, Marque, Produit, Systeme, TypeExport
 
 TOKEN_SALT = 'sersi-export-selection-v1'
 
@@ -30,7 +29,7 @@ def catalogue_context(form=None):
         'nombre_documents': Document.objects.count(),
         'nombre_expires': Document.objects.filter(date_expiration__lt=timezone.localdate()).count(),
         'nombre_marques': Marque.objects.count(),
-        'dolibarr_enabled': bool(settings.SERSI_DOLIBARR_URL),
+        'dolibarr_enabled': DolibarrSource.available().exists(),
     }
 
 
