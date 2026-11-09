@@ -42,7 +42,7 @@ class DocumentSchemaTests(TransactionTestCase):
             self.assertEqual(Produit.objects.get(pk=product.pk).documents.get().pk, document.pk)
             self.assertEqual(Produit.objects.get(pk=product.pk).systemes.get().pk, system.pk)
             self.assertEqual(Produit.objects.get(pk=product.pk).reference, 'SCHEMA-01')
-            self.assertFalse(Produit.objects.get(pk=product.pk).references_dolibarr.exists())
+            self.assertEqual(Produit.objects.get(pk=product.pk).reference_dolibarr, '')
             self.assertEqual(pdf.read_bytes(), b'%PDF-1.4\nSchema test')
             self.assertNotIn('ancien_chemin', [field.name for field in current._meta.fields])
 
@@ -67,10 +67,35 @@ class DocumentSchemaTests(TransactionTestCase):
         )
         self.restore_current_schema()
         from .dolibarr_config import decrypt_key
-        from .models import DolibarrReference
-        mapping = DolibarrReference.objects.select_related('source').get(produit_id=product.pk)
-        self.assertEqual(mapping.reference, 'REF-HISTORIQUE')
-        self.assertEqual(mapping.source.nom, 'ERP historique')
-        self.assertEqual(mapping.source.url, 'https://erp.example.test')
-        self.assertTrue(mapping.source.active)
-        self.assertEqual(decrypt_key(mapping.source.url, mapping.source.cle_chiffree), 'old-test-key')
+        from .models import DolibarrSource, Produit
+        self.assertEqual(Produit.objects.get(pk=product.pk).reference_dolibarr, 'REF-HISTORIQUE')
+        source = DolibarrSource.objects.get(nom='ERP historique')
+        self.assertEqual(source.url, 'https://erp.example.test')
+        self.assertTrue(source.active)
+        self.assertEqual(decrypt_key(source.url, source.cle_chiffree), 'old-test-key')
+
+    def test_consolidation_preserves_identical_references_and_reports_conflicts(self):
+        executor = MigrationExecutor(connection)
+        previous = [('catalogue', '0009_remove_legacy_dolibarr_reference')]
+        executor.migrate(previous)
+        self.addCleanup(self.restore_current_schema)
+        apps = executor.loader.project_state(previous).apps
+        brand = apps.get_model('catalogue', 'Marque').objects.create(nom='Marque test')
+        category = apps.get_model('catalogue', 'Categorie').objects.create(nom='Catégorie test')
+        product = apps.get_model('catalogue', 'Produit').objects.create(
+            reference='SCHEMA-03', nom='Produit ERP', marque=brand, categorie=category,
+        )
+        sources = apps.get_model('catalogue', 'DolibarrSource')
+        first = sources.objects.create(nom='ERP 1', url='https://one.example.test')
+        second = sources.objects.create(nom='ERP 2', url='https://two.example.test')
+        references = apps.get_model('catalogue', 'DolibarrReference')
+        references.objects.create(produit=product, source=first, reference='COMMUNE')
+        conflicting = references.objects.create(produit=product, source=second, reference='DIFFÉRENTE')
+        with self.assertRaisesRegex(ValueError, 'références Dolibarr différentes'):
+            self.restore_current_schema()
+        conflicting.reference = 'COMMUNE'
+        conflicting.save(update_fields=['reference'])
+        self.restore_current_schema()
+        from .models import DolibarrSource, Produit
+        self.assertEqual(Produit.objects.get(pk=product.pk).reference_dolibarr, 'COMMUNE')
+        self.assertEqual(DolibarrSource.objects.count(), 2)

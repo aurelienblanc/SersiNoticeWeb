@@ -13,7 +13,7 @@ from django.test import Client, SimpleTestCase, TestCase, override_settings
 from .dolibarr import DolibarrClient, DolibarrError, NoRedirect, match_proposal
 from .dolibarr_config import encrypt_key, legacy_connection
 from .models import (
-    Categorie, Document, DolibarrReference, DolibarrSource, DossierCible, Marque,
+    Categorie, Document, DolibarrSource, DossierCible, Marque,
     Produit, Systeme, TypeDocument, TypeExport,
 )
 
@@ -112,9 +112,8 @@ class DolibarrImportTests(TestCase):
         folder = DossierCible.objects.create(nom='Notices', chemin_relatif='Notices')
         self.products = []
         for number in (1, 2):
-            product = Produit.objects.create(reference=f'LOCAL-{number}',
+            product = Produit.objects.create(reference=f'LOCAL-{number}', reference_dolibarr=f'ERP-{number}',
                 nom=f'Produit {number}', marque=brand, categorie=category, actif=number == 1)
-            DolibarrReference.objects.create(produit=product, source=self.source, reference=f'ERP-{number}')
             product.systemes.add(system)
             document = Document.objects.create(nom=f'Notice {number}', type_document=kind)
             document.fichier.save(f'notice-{number}.pdf', ContentFile(b'%PDF-1.4\nERP fixture'))
@@ -138,15 +137,14 @@ class DolibarrImportTests(TestCase):
 
     def test_matches_duplicate_lines_once_and_reports_missing_ambiguous_and_free_lines(self):
         duplicate = self.products[0]
-        other = Produit.objects.create(reference='OTHER', nom='Autre produit',
-                                      marque=duplicate.marque, categorie=duplicate.categorie)
-        DolibarrReference.objects.create(produit=other, source=self.source, reference='ERP-1')
+        Produit.objects.create(reference='OTHER', reference_dolibarr='ERP-1', nom='Autre produit',
+                               marque=duplicate.marque, categorie=duplicate.categorie)
         self.proposal.return_value = ('PR-TEST', self.lines + [self.lines[1],
             {'line': 4, 'reference': 'MISSING', 'label': 'Sans correspondance'},
             {'line': 5, 'reference': '', 'label': 'Titre', 'reason': 'Ligne libre'},
         ])
         report = match_proposal(self.source, 'PR-TEST')
-        self.assertEqual([match.produit_id for match in report['matches']], [self.products[1].pk])
+        self.assertEqual(report['products'], [self.products[1]])
         self.assertEqual(report['matched_lines'], 2)
         self.assertEqual(len(report['issues']), 3)
         self.assertIn('Plusieurs produits', report['issues'][0]['reason'])
@@ -180,19 +178,19 @@ class DolibarrImportTests(TestCase):
 
     def test_a_changed_mapping_or_tampered_token_cannot_prepare_a_dossier(self):
         token = self.load().context['token']
-        self.products[0].references_dolibarr.update(reference='CHANGED')
+        self.products[0].reference_dolibarr = 'CHANGED'
+        self.products[0].save(update_fields=['reference_dolibarr'])
         self.assertEqual(self.preparation(token).status_code, 409)
         self.assertEqual(self.preparation(token + 'tampered').status_code, 409)
 
-    def test_same_reference_matches_only_the_selected_source(self):
+    def test_same_reference_matches_the_same_product_from_any_source(self):
         url = 'https://erp-two.example.test'
         other = DolibarrSource.objects.create(nom='Autre ERP', url=url, cle_chiffree=encrypt_key(url, 'other-key'))
-        DolibarrReference.objects.create(produit=self.products[1], source=other, reference='ERP-1')
         self.proposal.return_value = ('PR-TEST', self.lines[:1])
         first = self.load()
         second = self.load(other)
-        self.assertEqual(first.context['report']['matches'][0].produit_id, self.products[0].pk)
-        self.assertEqual(second.context['report']['matches'][0].produit_id, self.products[1].pk)
+        self.assertEqual(first.context['report']['products'], [self.products[0]])
+        self.assertEqual(second.context['report']['products'], [self.products[0]])
         self.assertContains(second, 'Autre ERP')
         self.assertNotContains(second, 'other-key')
         self.assertNotContains(second, url)

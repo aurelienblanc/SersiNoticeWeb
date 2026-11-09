@@ -10,6 +10,9 @@ test('une proposition reconnue prépare les notices et télécharge le ZIP', asy
   await page.getByRole('button', { name: 'Charger les produits' }).click();
   await expect(page.getByRole('heading', { name: 'Proposition PR-OK', exact: true })).toBeVisible();
   await expect(page.locator('.proposal-products li')).toHaveCount(2);
+  await expect(
+    page.locator('.proposal-stats div').filter({ hasText: 'Produits reconnus' }).locator('dd'),
+  ).toHaveText('2');
   await page.getByLabel('Client', { exact: true }).fill('Client test');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('proposition.png'), fullPage: true });
@@ -43,16 +46,16 @@ test('les lignes sans correspondance sont visibles et demandent une confirmation
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test('la même proposition peut désigner un autre produit selon la source', async ({ page }) => {
+test('une autre source reconnaît le produit avec la même référence Dolibarr', async ({ page }) => {
   await page.goto('/dolibarr/');
   await page.getByLabel('Source Dolibarr').selectOption({ label: 'Autre ERP de test' });
   await page.getByLabel('Numéro de proposition').fill('PR-OK');
   await page.getByRole('button', { name: 'Charger les produits' }).click();
   await expect(page.getByText('Autre ERP de test', { exact: true })).toBeVisible();
-  await expect(page.locator('.proposal-products li strong')).toHaveText(['BB-4']);
+  await expect(page.locator('.proposal-products li strong')).toHaveText(['AA-4']);
 });
 
-test('l’administration permet de créer une source et de retrouver les références par ERP', async ({
+test('l’administration permet de créer une source et affiche une seule référence par produit', async ({
   page,
 }, testInfo) => {
   await page.goto('/admin/login/');
@@ -76,7 +79,8 @@ test('l’administration permet de créer une source et de retrouver les référ
     }),
   ).toBeVisible();
   await page.goto('/admin/catalogue/produit/2/change/');
-  await expect(page.getByRole('heading', { name: 'Références Dolibarr' })).toBeVisible();
-  await expect(page.locator('input[name="references_dolibarr-0-reference"]')).toBeVisible();
+  const reference = page.getByLabel('Référence Dolibarr', { exact: false });
+  await expect(reference).toBeVisible();
+  await expect(reference).toHaveValue('ERP-BB-4');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

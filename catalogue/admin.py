@@ -9,7 +9,7 @@ from django.views.decorators.debug import sensitive_post_parameters
 from .dolibarr_config import decrypt_key
 from .dolibarr_forms import DolibarrSourceForm
 from .models import (
-    Categorie, Document, DolibarrReference, DolibarrSource, DossierCible,
+    Categorie, Document, DolibarrSource, DossierCible,
     ExportRecord, Marque, Produit, Systeme, TypeDocument, TypeExport,
 )
 from .admin_site import admin_site
@@ -94,21 +94,15 @@ class DolibarrSourceAdmin(admin.ModelAdmin):
         return super().changeform_view(request, object_id, form_url, extra_context)
 
 
-class DolibarrReferenceInline(admin.TabularInline):
-    model = DolibarrReference
-    extra = 1
-
-
 @admin.register(Produit, site=admin_site)
 class ProduitAdmin(admin.ModelAdmin):
-    list_display = ['reference', 'nom', 'marque', 'categorie', 'actif']
+    list_display = ['reference', 'reference_dolibarr', 'nom', 'marque', 'categorie', 'actif']
     list_filter = ['actif', 'systemes', 'marque', 'categorie']
-    search_fields = ['reference', 'references_dolibarr__reference', 'nom', 'description']
+    search_fields = ['reference', 'reference_dolibarr', 'nom', 'description']
     filter_horizontal = ['systemes', 'documents']
     list_select_related = ['marque', 'categorie']
-    inlines = [DolibarrReferenceInline]
     fieldsets = [
-        ('Identification du produit', {'fields': ['reference', 'nom', 'marque', 'categorie', 'actif']}),
+        ('Identification du produit', {'fields': ['reference', 'reference_dolibarr', 'nom', 'marque', 'categorie', 'actif']}),
         ('Systèmes et documentation', {'fields': ['systemes', 'documents']}),
         ('Description', {'fields': ['description'], 'classes': ['collapse']}),
     ]

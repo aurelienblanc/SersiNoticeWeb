@@ -192,27 +192,21 @@ class SharedAdministrationTests(TestCase):
         category = Categorie.objects.create(nom='Catégorie ERP')
         system = Systeme.objects.create(nom='Système ERP')
         product = Produit.objects.create(reference='APP-01', nom='Produit ERP', marque=brand, categorie=category)
-        source = DolibarrSource.objects.create(nom='ERP test', url='https://erp.example.test', active=False)
         product.systemes.add(system)
         self.connect()
         url = f'/admin/catalogue/produit/{product.pk}/change/'
-        self.assertContains(self.client.get(url), 'name="references_dolibarr-0-reference"')
+        self.assertContains(self.client.get(url), 'name="reference_dolibarr"')
         data = {'reference': product.reference, 'nom': product.nom, 'marque': brand.pk,
                 'categorie': category.pk, 'actif': 'on', 'systemes': [system.pk],
-                'references_dolibarr-INITIAL_FORMS': '0', 'references_dolibarr-TOTAL_FORMS': '1',
-                'references_dolibarr-0-source': source.pk,
-                'references_dolibarr-0-reference': '  ERP-ASD/01  ', '_save': 'Enregistrer'}
+                'reference_dolibarr': '  ERP-ASD/01  ', '_save': 'Enregistrer'}
         self.assertEqual(self.client.post(url, data).status_code, 302)
-        mapping = product.references_dolibarr.get()
-        self.assertEqual(mapping.reference, 'ERP-ASD/01')
+        product.refresh_from_db()
+        self.assertEqual(product.reference_dolibarr, 'ERP-ASD/01')
         response = self.client.get('/admin/catalogue/produit/', {'q': 'ERP-ASD/01'})
         self.assertEqual(list(response.context['cl'].queryset.values_list('pk', flat=True)), [product.pk])
-        self.assertEqual(self.client.post(url, {
-            **data, 'references_dolibarr-INITIAL_FORMS': '1',
-            'references_dolibarr-0-id': mapping.pk, 'references_dolibarr-0-DELETE': 'on',
-        }).status_code, 302)
+        self.assertEqual(self.client.post(url, {**data, 'reference_dolibarr': ''}).status_code, 302)
         product.refresh_from_db()
-        self.assertFalse(product.references_dolibarr.exists())
+        self.assertEqual(product.reference_dolibarr, '')
         self.assertEqual(product.reference, 'APP-01')
 
     def test_password_change_checks_current_password_strength_and_confirmation(self):

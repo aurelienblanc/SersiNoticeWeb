@@ -10,7 +10,7 @@ from django.core.exceptions import ValidationError
 from django.utils.html import strip_tags
 
 from .dolibarr_config import decrypt_key, valid_api_key, validate_connection_url
-from .models import DolibarrReference
+from .models import Produit
 
 MAX_RESPONSE_BYTES = 4 * 1024 * 1024
 MAX_LINES = 500
@@ -104,18 +104,18 @@ class DolibarrClient:
         return proposal['ref'], entries
 
 
-def reference_matches(source, references):
-    return DolibarrReference.objects.filter(source=source, reference__in=references).select_related(
-        'produit__marque', 'produit__categorie',
-    ).order_by('produit__reference')
+def matching_products(references):
+    return Produit.objects.filter(reference_dolibarr__in=references).select_related(
+        'marque', 'categorie',
+    ).order_by('reference')
 
 
 def match_proposal(source, reference):
     reference, entries = DolibarrClient(source).proposal(reference)
     references = {entry['reference'] for entry in entries if entry['reference']}
     matches = {}
-    for match in reference_matches(source, references):
-        matches.setdefault(match.reference, []).append(match)
+    for product in matching_products(references):
+        matches.setdefault(product.reference_dolibarr, []).append(product)
     selected, issues, matched_lines = {}, [], 0
     for entry in entries:
         candidates = matches.get(entry['reference'], [])
@@ -124,10 +124,10 @@ def match_proposal(source, reference):
         elif not candidates:
             issues.append({**entry, 'reason': 'Aucune correspondance dans SERSI Notices.'})
         elif len(candidates) > 1:
-            issues.append({**entry, 'reason': 'Plusieurs produits correspondent à cette référence : ' + ', '.join(match.produit.reference for match in candidates)})
+            issues.append({**entry, 'reason': 'Plusieurs produits correspondent à cette référence : ' + ', '.join(product.reference for product in candidates)})
         else:
-            match = candidates[0]
-            selected[match.produit_id] = match
+            product = candidates[0]
+            selected[product.pk] = product
             matched_lines += 1
-    return {'reference': reference, 'matches': list(selected.values()), 'issues': issues,
+    return {'reference': reference, 'products': list(selected.values()), 'issues': issues,
             'line_count': len(entries), 'matched_lines': matched_lines}

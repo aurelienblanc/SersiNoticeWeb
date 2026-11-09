@@ -86,7 +86,7 @@ from django.utils import timezone
 
 from catalogue.dolibarr_config import encrypt_key
 from catalogue.models import (
-    AdministrationAccess, Categorie, Document, DolibarrReference, DolibarrSource, DossierCible, MaintenanceSettings,
+    AdministrationAccess, Categorie, Document, DolibarrSource, DossierCible, MaintenanceSettings,
     Marque, Produit, Systeme, TypeDocument, TypeExport,
 )
 
@@ -98,8 +98,8 @@ logging.getLogger('django.server').setLevel(logging.WARNING)
 call_command('migrate', verbosity=0, interactive=False)
 source = DolibarrSource.objects.get(nom='ERP de test')
 second_url = source.url + '/autre'
-other_source = DolibarrSource.objects.create(nom='Autre ERP de test', url=second_url,
-                                             cle_chiffree=encrypt_key(second_url, 'second-browser-only-key'))
+DolibarrSource.objects.create(nom='Autre ERP de test', url=second_url,
+                              cle_chiffree=encrypt_key(second_url, 'second-browser-only-key'))
 MaintenanceSettings.objects.create(pk=1, automatic_backups=False)
 AdministrationAccess.objects.create(pk=1, password_hash=make_password('Browser-test-only-password-2026!'))
 systems = [Systeme.objects.create(nom=name) for name in ('Type 4', 'SSI')]
@@ -118,11 +118,8 @@ fixtures = [
     ('AA-OLD', 'Ancien produit', 0, 1, [0], False),
 ]
 for reference, name, brand, category, compatible, active in fixtures:
-    product = Produit.objects.create(reference=reference,
+    product = Produit.objects.create(reference=reference, reference_dolibarr=f'ERP-{reference}',
         nom=name, marque=brands[brand], categorie=categories[category], actif=active)
-    DolibarrReference.objects.create(produit=product, source=source, reference=f'ERP-{reference}')
-    if reference == 'BB-4':
-        DolibarrReference.objects.create(produit=product, source=other_source, reference='ERP-AA-4')
     product.systemes.set([systems[index] for index in compatible])
     document = Document.objects.create(nom=f'Notice {reference}',
         type_document=certificate_kind if reference == 'GEN' else kind,

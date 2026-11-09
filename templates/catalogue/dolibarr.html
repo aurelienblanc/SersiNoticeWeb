@@ -74,10 +74,8 @@
       </dl>
       <h3>Produits pour le dossier</h3>
       <ul class="proposal-products">
-        {% for match in report.matches %}
-          {% with product=match.produit %}
-            <li><strong>{{ product.reference }}</strong><span>{{ product.nom }} · {{ product.marque.nom }}{% if not product.actif %} · Inactif{% endif %}</span><small>Dolibarr : {{ match.reference }}</small></li>
-          {% endwith %}
+        {% for product in report.products %}
+          <li><strong>{{ product.reference }}</strong><span>{{ product.nom }} · {{ product.marque.nom }}{% if not product.actif %} · Inactif{% endif %}</span><small>Dolibarr : {{ product.reference_dolibarr }}</small></li>
         {% empty %}
           <li>Aucun produit reconnu. Renseignez les références Dolibarr dans les fiches produits, puis rechargez la proposition.</li>
         {% endfor %}
@@ -96,7 +94,7 @@
            href="{% url 'admin:catalogue_produit_changelist' %}">{% include "shared/icon.html" with name="square-pen" only %} Renseigner les correspondances dans l’administration</a>
       {% endif %}
     </section>
-    {% if report.matches %}
+    {% if report.products %}
       <section class="panel dolibarr-panel">
         <h2>Préparer le dossier</h2>
         <form method="post"

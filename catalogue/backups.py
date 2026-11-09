@@ -20,21 +20,21 @@ from django.db import connection, transaction, models
 from django.utils import timezone
 
 from .admin_access import audit_principal
-from .dolibarr_config import LEGACY_SOURCE_NAME, normalize_url
+from .dolibarr_config import normalize_url
 from .journal import record_event
 from .models import (
-    ActivityEvent, BackupRecord, Categorie, Document, DolibarrReference, DolibarrSource, DossierCible, ExportRecord,
+    ActivityEvent, BackupRecord, Categorie, Document, DolibarrSource, DossierCible, ExportRecord,
     Marque, Produit, Systeme, TypeDocument, TypeExport, validate_folder_path,
 )
 
 CATALOGUE_MODELS = (Systeme, Categorie, Marque, TypeExport, TypeDocument, DossierCible, Document, Produit,
-                    ExportRecord, DolibarrSource, DolibarrReference)
+                    ExportRecord, DolibarrSource)
 MODELS = {model._meta.label_lower: model for model in CATALOGUE_MODELS}
 HISTORY_MODELS = {model._meta.model_name for model in CATALOGUE_MODELS if model is not DolibarrSource}
 METADATA = {'catalogue.json', 'historique.json', 'journal.json'}
 JSON_LIMIT = 64 * 1024 * 1024
 CHUNK = 1024 * 1024
-BACKUP_VERSION = 4
+BACKUP_VERSION = 5
 
 
 class BackupError(Exception):
@@ -167,15 +167,47 @@ def create_backup(origin='manual', progress=lambda percent, message: None):
     return backup
 
 
+def _fold_dolibarr_references(rows):
+    products = {row['pk']: row['fields'] for row in rows if row['model'] == 'catalogue.produit'}
+    source_ids = {row['pk'] for row in rows if row['model'] == 'catalogue.dolibarrsource'}
+    for fields in products.values():
+        if 'reference_dolibarr' in fields:
+            raise BackupError('Cette sauvegarde ne correspond pas à la version du catalogue.')
+        fields['reference_dolibarr'] = ''
+    catalogue, ids, pairs = [], set(), set()
+    for row in rows:
+        if row['model'] != 'catalogue.dolibarrreference':
+            catalogue.append(row)
+            continue
+        pk, fields = row['pk'], row['fields']
+        if set(row) != {'model', 'pk', 'fields'} or type(pk) is not int or pk < 1 or pk in ids or not isinstance(fields, dict) or set(fields) != {'produit', 'source', 'reference'}:
+            raise BackupError('Une correspondance Dolibarr sauvegardée est invalide.')
+        product_id, source_id, reference = fields['produit'], fields['source'], fields['reference']
+        pair = (product_id, source_id)
+        if (type(product_id) is not int or type(source_id) is not int or product_id not in products
+                or source_id not in source_ids or pair in pairs or not isinstance(reference, str)
+                or not 0 < len(reference) <= 255):
+            raise BackupError('Une correspondance Dolibarr sauvegardée est invalide.')
+        current = products[product_id]['reference_dolibarr']
+        if current and current != reference:
+            raise BackupError('Une sauvegarde contient des références Dolibarr différentes pour le même produit.')
+        products[product_id]['reference_dolibarr'] = reference
+        ids.add(pk)
+        pairs.add(pair)
+    return catalogue
+
+
 def _read_catalogue(archive, version):
     """Upgrade older web snapshots before strict validation of their schema."""
     rows = json.loads(archive.read('catalogue.json'))
-    if version < 4 and isinstance(rows, list) and any(
+    if not isinstance(rows, list):
+        raise BackupError('Le catalogue de la sauvegarde est invalide.')
+    if version < 4 and any(
         isinstance(row, dict) and row.get('model') in ('catalogue.dolibarrsource', 'catalogue.dolibarrreference')
         for row in rows
     ):
         raise BackupError('Cette sauvegarde ne correspond pas à la version du catalogue.')
-    if version == 1 and isinstance(rows, list):
+    if version == 1:
         for row in rows:
             if not isinstance(row, dict) or row.get('model') != 'catalogue.document':
                 continue
@@ -183,30 +215,16 @@ def _read_catalogue(archive, version):
             if isinstance(fields, dict) and 'ancien_chemin' in fields:
                 if not isinstance(fields.pop('ancien_chemin'), str):
                     raise BackupError('Une valeur du catalogue sauvegardé est invalide.')
-    if version == 3 and isinstance(rows, list):
-        references = []
+    if version in (1, 2):
         for row in rows:
             if isinstance(row, dict) and row.get('model') == 'catalogue.produit':
                 fields = row.get('fields')
                 if isinstance(fields, dict):
-                    reference = fields.pop('reference_dolibarr', None)
-                    if not isinstance(reference, str) or len(reference) > 255:
-                        raise BackupError('Une référence Dolibarr sauvegardée est invalide.')
-                    if reference:
-                        references.append({
-                            'model': 'catalogue.dolibarrreference', 'pk': len(references) + 1,
-                            'fields': {'produit': row.get('pk'), 'source': 1, 'reference': reference},
-                        })
-        if references:
-            rows.append({'model': 'catalogue.dolibarrsource', 'pk': 1,
-                         'fields': {'nom': LEGACY_SOURCE_NAME, 'url': '', 'active': False}})
-            rows.extend(references)
-    return rows
+                    fields.setdefault('reference_dolibarr', '')
+    return _fold_dolibarr_references(rows) if version == 4 else rows
 
 
 def _validate_catalogue(rows, entries):
-    if not isinstance(rows, list):
-        raise BackupError('Le catalogue de la sauvegarde est invalide.')
     objects = {label: {} for label in MODELS}
     for row in rows:
         if not isinstance(row, dict) or set(row) != {'model', 'pk', 'fields'} or row['model'] not in MODELS:
@@ -219,7 +237,6 @@ def _validate_catalogue(rows, entries):
         if set(fields) != expected:
             raise BackupError('Cette sauvegarde ne correspond pas à la version du catalogue.')
         objects[label][pk] = fields
-    reference_pairs = set()
     for label, items in objects.items():
         model = MODELS[label]
         unique_values = {}
@@ -258,11 +275,8 @@ def _validate_catalogue(rows, entries):
                     parent = items[parent]['parent']
             if model is DolibarrSource and fields['url'] and normalize_url(fields['url']) != fields['url']:
                 raise BackupError('Une adresse Dolibarr sauvegardée est invalide.')
-            if model is DolibarrReference:
-                pair = (fields['produit'], fields['source'])
-                if pair in reference_pairs:
-                    raise BackupError('Un produit possède plusieurs références pour la même source Dolibarr.')
-                reference_pairs.add(pair)
+            if model is Produit and not isinstance(fields['reference_dolibarr'], str):
+                raise BackupError('Une référence Dolibarr sauvegardée est invalide.')
     referenced = {f'documents/{safe_relative(fields["fichier"])}'
                   for fields in objects['catalogue.document'].values() if fields['fichier']}
     if referenced != set(entries) - METADATA:
@@ -287,7 +301,7 @@ def validate_archive(path, progress=lambda percent, message: None):
                 raise BackupError('Le manifeste de sauvegarde est absent ou invalide.')
             manifest = json.loads(archive.read('manifest.json'))
             version = manifest.get('version')
-            if manifest.get('format') != 'sersi-notice-backup' or type(version) is not int or version not in (1, 2, 3, BACKUP_VERSION):
+            if manifest.get('format') != 'sersi-notice-backup' or type(version) is not int or version not in (1, 2, 3, 4, BACKUP_VERSION):
                 raise BackupError('Ce fichier n’est pas une sauvegarde SERSI Notices compatible.')
             entries = manifest.get('entries')
             if not isinstance(entries, dict) or set(entries) | {'manifest.json'} != set(names) or not METADATA.issubset(entries):
@@ -338,21 +352,15 @@ def verify_backup(backup, progress=lambda percent, message: None):
 
 
 def _restore_dolibarr_sources(rows):
-    """Keep current connection settings and remap catalogue references by ERP URL."""
-    source_ids = {}
+    """Preserve configured ERP connections and restore new ones as drafts."""
     for row in rows:
         if row['model'] == 'catalogue.dolibarrsource':
             fields = row['fields']
-            source, _ = DolibarrSource.objects.get_or_create(
+            DolibarrSource.objects.get_or_create(
                 url=fields['url'], defaults={'nom': fields['nom'], 'active': False},
             )
-            source_ids[row['pk']] = source.pk
-    for row in rows:
-        if row['model'] == 'catalogue.dolibarrsource':
-            continue
-        if row['model'] == 'catalogue.dolibarrreference':
-            row['fields']['source'] = source_ids[row['fields']['source']]
-        yield row
+        else:
+            yield row
 
 
 def restore_backup(backup, progress=lambda percent, message: None):

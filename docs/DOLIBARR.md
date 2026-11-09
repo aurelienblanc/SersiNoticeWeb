@@ -11,13 +11,13 @@ Activer le module REST de Dolibarr et utiliser la clé API d’un utilisateur au
 
 Le champ **Clé API** reste vide lors d’une modification. Laisser le champ vide conserve la clé pour la même adresse. Si l’adresse change, fournir une clé pour le nouvel ERP avant d’activer la source. Les clés sont chiffrées côté serveur avec une clé dérivée de `SERSI_SECRET_KEY` et liée à l’adresse de l’ERP. Si `SERSI_SECRET_KEY` change, ressaisir les clés. Le connecteur envoie la clé uniquement dans l’en-tête d’authentification à l’adresse configurée et refuse les redirections.
 
-Pour retirer temporairement un ERP du formulaire d’import, décocher **Active**. La suppression d’une source retire aussi ses correspondances produits.
+Pour retirer temporairement un ERP du formulaire d’import, décocher **Active**.
 
 ## Correspondances produits
 
-Dans **Administration → Produits**, ouvrir un produit. Dans **Références Dolibarr**, ajouter une ligne par ERP concerné, choisir la source et saisir la référence exacte dans cet ERP. La recherche de l’administration retrouve aussi les références Dolibarr.
+Dans **Administration → Produits**, ouvrir un produit et renseigner sa **Référence Dolibarr**. Ce champ est facultatif et commun à tous les ERP. La recherche de l’administration permet de retrouver cette référence.
 
-Une même référence peut désigner des produits différents dans deux ERP. Si elle désigne plusieurs produits pour la même source, le récapitulatif signale l’ambiguïté. Une référence absente déclenche aussi un signalement.
+Si la référence d’une ligne est absente du catalogue ou apparaît sur plusieurs fiches, le récapitulatif le signale. Le choix de la source détermine où lire la proposition.
 
 ## Utilisation
 
@@ -32,10 +32,10 @@ Les correspondances et la source sont vérifiées à nouveau avant la préparati
 
 ## Mise à jour depuis la connexion unique
 
-Lors de la migration, le nom, l’adresse et la clé de l’ancienne connexion sont repris depuis les variables `SERSI_DOLIBARR_*` si elles sont renseignées. Les correspondances existantes sont transférées vers cette source. En l’absence de clé, la source reste inactive. Si aucune adresse valide n’est disponible, les références existantes sont rattachées à une source inactive **Dolibarr historique** à identifier dans l’administration. Après migration, les sources se gèrent depuis l’administration et les anciennes variables peuvent être retirées du fichier `.env`.
+Lors de la migration, le nom, l’adresse et la clé de l’ancienne connexion sont repris depuis les variables `SERSI_DOLIBARR_*` si elles sont renseignées. En l’absence de clé, la source reste inactive. Les références existantes sont reprises dans le champ commun. Si la base de la version de test contient plusieurs références différentes pour le même produit, la migration s’arrête et indique le produit à corriger. Après migration, les sources se gèrent depuis l’administration et les anciennes variables peuvent être retirées du fichier `.env`.
 
 ## Sauvegardes
 
-Les sauvegardes web au format **4** conservent les sources et leurs correspondances produits. Lors d’une restauration, une source est reconnue par son adresse et conserve ses réglages et sa clé sur le serveur. Une source absente est ajoutée inactive, prête à recevoir sa clé. Les clés API sont exclues du ZIP.
+Les sauvegardes web au format **5** conservent les sources et les références communes des produits. Lors d’une restauration, une source est reconnue par son adresse et conserve ses réglages et sa clé sur le serveur. Une source absente est ajoutée inactive, prête à recevoir sa clé. Les clés API sont exclues du ZIP.
 
-Les archives web **1 à 3** restent restaurables. Les références du format 3 sont reprises sous **Dolibarr historique**, à vérifier avant activation, car ce format ne contenait pas l’adresse de l’ERP. Une version antérieure de l’application ne lit pas le format 4. Conserver l’instantané complet de la base et le fichier `.env` avant la mise à jour pour un retour arrière.
+Les archives web **1 à 3** restent restaurables. Pour le format **4**, les références par source sont regroupées quand elles concordent. Une divergence pour un même produit bloque la restauration. Conserver l’instantané complet de la base et le fichier `.env` avant la mise à jour pour un retour arrière.

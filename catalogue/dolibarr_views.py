@@ -3,14 +3,14 @@ from django.shortcuts import render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST
 
-from .dolibarr import DolibarrError, match_proposal, reference_matches, source_fingerprint
+from .dolibarr import DolibarrError, match_proposal, matching_products, source_fingerprint
 from .dolibarr_forms import ProposalLookupForm, ProposalSelectionForm
 from .forms import SelectionForm
 from .journal import record_event
 from .models import DolibarrSource, TypeExport
 from .views import render_selection_preview
 
-IMPORT_SALT = 'sersi-dolibarr-proposal-v2'
+IMPORT_SALT = 'sersi-dolibarr-proposal-v3'
 
 
 @require_http_methods(['GET', 'POST'])
@@ -32,13 +32,13 @@ def proposal_lookup(request):
     payload = {key: report[key] for key in ('reference', 'issues', 'line_count', 'matched_lines')}
     payload['source_id'] = source.pk
     payload['source'] = source_fingerprint(source)
-    payload['product_map'] = [[match.produit_id, match.reference] for match in report['matches']]
+    payload['product_map'] = [[product.pk, product.reference_dolibarr] for product in report['products']]
     token = signing.dumps(payload, salt=IMPORT_SALT, compress=True)
     selection_form = ProposalSelectionForm(initial={
         'projet': report['reference'], 'types_export': list(TypeExport.objects.values_list('pk', flat=True)),
     }, has_issues=bool(report['issues']))
     record_event('exports', 'dolibarr.proposal_loaded', f'Proposition Dolibarr chargée : {report["reference"]}',
-                 details={'source': source.nom, 'produits': len(report['matches']), 'lignes_signalees': len(report['issues'])})
+                 details={'source': source.nom, 'produits': len(report['products']), 'lignes_signalees': len(report['issues'])})
     return render(request, 'catalogue/dolibarr.html', {
         'source': source, 'report': report, 'token': token, 'selection_form': selection_form,
     })
@@ -51,12 +51,12 @@ def proposal_preview(request):
         payload = signing.loads(request.POST.get('import_token', ''), salt=IMPORT_SALT, max_age=3600)
         source = DolibarrSource.available().defer('cle_chiffree').get(pk=payload['source_id'])
         references = [reference for _, reference in payload['product_map']]
-        matches = list(reference_matches(source, references))
-        current = sorted([[match.produit_id, match.reference] for match in matches])
-        if payload['source'] != source_fingerprint(source) or not matches or current != sorted(payload['product_map']):
+        products = list(matching_products(references))
+        current = sorted([[product.pk, product.reference_dolibarr] for product in products])
+        if payload['source'] != source_fingerprint(source) or not products or current != sorted(payload['product_map']):
             raise ValueError
         report = {key: payload[key] for key in ('reference', 'issues', 'line_count', 'matched_lines')}
-        report['matches'] = matches
+        report['products'] = products
     except (signing.BadSignature, DolibarrSource.DoesNotExist, ValueError, TypeError, KeyError):
         return render(request, 'catalogue/error.html', {
             'message': 'La proposition a expiré ou ses correspondances ont changé. Rechargez-la depuis Dolibarr.',
@@ -67,7 +67,6 @@ def proposal_preview(request):
             'source': source, 'report': report, 'token': request.POST.get('import_token'), 'selection_form': form,
         }, status=400)
     data = form.cleaned_data
-    products = [match.produit for match in matches]
     selection_form = SelectionForm({
         'produits': [product.pk for product in products],
         'types_export': list(data['types_export'].values_list('pk', flat=True)),

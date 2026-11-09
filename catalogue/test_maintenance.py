@@ -21,7 +21,7 @@ from .journal import record_event
 from .logging_handlers import JournalErrorHandler
 from .maintenance import housekeeping, maintenance_lock, purge_logs, queue_job, run_pending_job
 from .models import (
-    ActivityEvent, AdministrationAccess, BackupRecord, Categorie, Document, DolibarrReference, DolibarrSource, DossierCible,
+    ActivityEvent, AdministrationAccess, BackupRecord, Categorie, Document, DolibarrSource, DossierCible,
     MaintenanceJob, MaintenanceSettings, Marque, Produit, Systeme, TypeDocument, TypeExport,
 )
 
@@ -50,12 +50,11 @@ class MaintenanceTests(TransactionTestCase):
         self.kind = TypeDocument.objects.create(nom='Notice', type_export=self.export)
         self.folder = DossierCible.objects.create(nom='Notices', chemin_relatif='Notices')
         self.child = DossierCible.objects.create(nom='ECS', chemin_relatif='ECS', parent=self.folder)
-        self.product = Produit.objects.create(reference='ASD-TEST',
+        self.product = Produit.objects.create(reference='ASD-TEST', reference_dolibarr='ERP-ASD-TEST',
             nom='Produit initial', marque=self.brand, categorie=self.category)
         url = 'https://erp.example.test'
         self.source = DolibarrSource.objects.create(nom='ERP sauvegarde', url=url,
                                                    cle_chiffree=encrypt_key(url, 'backup-only-test-key'))
-        DolibarrReference.objects.create(source=self.source, produit=self.product, reference='ERP-ASD-TEST')
         self.product.systemes.add(self.system)
         self.document = Document.objects.create(nom='Notice initiale', type_document=self.kind)
         self.content = b'%PDF-1.4\nDocumentation de test\n'
@@ -73,7 +72,7 @@ class MaintenanceTests(TransactionTestCase):
         backup = create_backup()
         initial_filename = self.document.fichier.name
         self.product.nom = 'Produit modifié'
-        self.product.references_dolibarr.update(reference='ERP-MODIFIE')
+        self.product.reference_dolibarr = 'ERP-MODIFIE'
         self.source.nom = 'Nom actuel'
         self.source.save(update_fields=['nom'])
         extra_source = DolibarrSource.objects.create(nom='Autre source', url='https://erp-two.example.test', active=False)
@@ -90,10 +89,10 @@ class MaintenanceTests(TransactionTestCase):
         self.document.refresh_from_db()
         self.access.refresh_from_db()
         self.assertEqual(self.product.nom, 'Produit initial')
-        mapping = self.product.references_dolibarr.select_related('source').get()
-        self.assertEqual(mapping.reference, 'ERP-ASD-TEST')
-        self.assertEqual(mapping.source.nom, 'Nom actuel')
-        self.assertEqual(mapping.source.cle_chiffree, self.source.cle_chiffree)
+        self.assertEqual(self.product.reference_dolibarr, 'ERP-ASD-TEST')
+        source = DolibarrSource.objects.get(pk=self.source.pk)
+        self.assertEqual(source.nom, 'Nom actuel')
+        self.assertEqual(source.cle_chiffree, self.source.cle_chiffree)
         self.assertTrue(DolibarrSource.objects.filter(pk=extra_source.pk).exists())
         self.assertEqual(Produit.objects.count(), 1)
         self.assertEqual(list(self.product.documents.values_list('pk', flat=True)), [self.document.pk])
@@ -119,7 +118,7 @@ class MaintenanceTests(TransactionTestCase):
             self.assertNotIn('cle_chiffree', archive.read('catalogue.json').decode())
             self.assertNotIn(self.source.cle_chiffree, archive.read('catalogue.json').decode())
             self.assertNotIn('backup-only-test-key', archive.read('catalogue.json').decode())
-            self.assertEqual(json.loads(archive.read('manifest.json'))['version'], 4)
+            self.assertEqual(json.loads(archive.read('manifest.json'))['version'], 5)
         path.write_bytes(path.read_bytes() + b'changed')
         with self.assertRaises(BackupError):
             restore_backup(backup)
@@ -160,19 +159,30 @@ class MaintenanceTests(TransactionTestCase):
         with self.assertRaises(BackupError):
             validate_archive(path)
 
-    def rewrite_web_backup(self, backup, *, version, extra_fields, omit_dolibarr=False):
+    def rewrite_web_backup(self, backup, *, version, extra_fields, omit_dolibarr=False,
+                           second_reference='ERP-ASD-TEST'):
         """Rebuild a web-format fixture with consistent checksums."""
         path = backup_path(backup)
         with zipfile.ZipFile(path) as archive:
             data = {name: archive.read(name) for name in archive.namelist()}
         rows = json.loads(data['catalogue.json'])
         if version < 4:
-            rows = [row for row in rows if row['model'] not in ('catalogue.dolibarrsource', 'catalogue.dolibarrreference')]
+            rows = [row for row in rows if row['model'] != 'catalogue.dolibarrsource']
         for row in rows:
             if row['model'] == 'catalogue.document':
                 row['fields'].update(extra_fields)
-            if version == 3 and not omit_dolibarr and row['model'] == 'catalogue.produit':
-                row['fields']['reference_dolibarr'] = 'ERP-ASD-TEST'
+            if row['model'] == 'catalogue.produit' and (version in (1, 2, 4) or omit_dolibarr):
+                row['fields'].pop('reference_dolibarr')
+        if version == 4:
+            second_id = self.source.pk + 1
+            rows.append({'model': 'catalogue.dolibarrsource', 'pk': second_id,
+                         'fields': {'nom': 'Autre ERP', 'url': 'https://other.example.test', 'active': True}})
+            rows.extend({
+                'model': 'catalogue.dolibarrreference', 'pk': pk,
+                'fields': {'produit': self.product.pk, 'source': source_id, 'reference': reference},
+            } for pk, (source_id, reference) in enumerate(
+                [(self.source.pk, 'ERP-ASD-TEST'), (second_id, second_reference)], 1,
+            ))
         data['catalogue.json'] = json.dumps(rows).encode()
         manifest = json.loads(data['manifest.json'])
         manifest['version'] = version
@@ -206,7 +216,7 @@ class MaintenanceTests(TransactionTestCase):
         self.assertEqual(Path(self.document.fichier.path).read_bytes(), self.content)
         self.assertTrue(ActivityEvent.objects.filter(event='previous.web.event').exists())
         self.assertFalse(hasattr(self.document, 'ancien_chemin'))
-        self.assertFalse(self.product.references_dolibarr.exists())
+        self.assertEqual(self.product.reference_dolibarr, '')
 
     def test_previous_format_two_backup_initializes_empty_dolibarr_references(self):
         backup = create_backup()
@@ -214,28 +224,41 @@ class MaintenanceTests(TransactionTestCase):
         self.assertEqual(verify_backup(backup)['version'], 2)
         restore_backup(backup)
         self.product.refresh_from_db()
-        self.assertFalse(self.product.references_dolibarr.exists())
+        self.assertEqual(self.product.reference_dolibarr, '')
         self.assertEqual(self.product.documents.get().pk, self.document.pk)
         self.assertEqual(self.product.reference, 'ASD-TEST')
 
-    def test_format_three_references_are_restored_into_an_inactive_source(self):
+    def test_format_three_restores_the_shared_reference(self):
         backup = create_backup()
         self.rewrite_web_backup(backup, version=3, extra_fields={})
         restore_backup(backup)
-        mapping = self.product.references_dolibarr.select_related('source').get()
-        self.assertEqual(mapping.reference, 'ERP-ASD-TEST')
-        self.assertFalse(mapping.source.active)
-        self.assertEqual(mapping.source.url, '')
-        self.assertTrue(DolibarrSource.available().filter(pk=self.source.pk).exists())
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.reference_dolibarr, 'ERP-ASD-TEST')
+        self.assertEqual(list(DolibarrSource.available()), [self.source])
+
+    def test_format_four_consolidates_identical_references(self):
+        backup = create_backup()
+        self.rewrite_web_backup(backup, version=4, extra_fields={})
+        restore_backup(backup)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.reference_dolibarr, 'ERP-ASD-TEST')
+        self.assertFalse(DolibarrSource.objects.get(nom='Autre ERP').active)
+
+    def test_format_four_rejects_conflicting_references(self):
+        backup = create_backup()
+        self.rewrite_web_backup(backup, version=4, extra_fields={}, second_reference='AUTRE')
+        with self.assertRaisesRegex(BackupError, 'références Dolibarr différentes'):
+            verify_backup(backup)
 
     def test_restoring_on_another_installation_requires_a_new_key(self):
         backup = create_backup()
         self.source.delete()
         restore_backup(backup)
-        mapping = self.product.references_dolibarr.select_related('source').get()
-        self.assertEqual(mapping.reference, 'ERP-ASD-TEST')
-        self.assertFalse(mapping.source.active)
-        self.assertEqual(mapping.source.cle_chiffree, '')
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.reference_dolibarr, 'ERP-ASD-TEST')
+        source = DolibarrSource.objects.get()
+        self.assertFalse(source.active)
+        self.assertEqual(source.cle_chiffree, '')
 
     def test_format_three_requires_the_legacy_dolibarr_reference_field(self):
         backup = create_backup()
@@ -249,7 +272,7 @@ class MaintenanceTests(TransactionTestCase):
             (2, {'ancien_chemin': 'not allowed in format 2'}),
             (1, {'ancien_chemin': {'invalid': 'type'}}),
             (3, {'unexpected_field': 'invalid'}),
-            (5, {}),
+            (6, {}),
         ]
         for version, fields in cases:
             with self.subTest(version=version, fields=fields):
