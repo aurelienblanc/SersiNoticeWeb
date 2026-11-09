@@ -5,7 +5,7 @@
 {% block extrahead %}
   {% if dolibarr_enabled %}
     <link rel="stylesheet"
-          href="{% static 'catalogue/dolibarr.css' %}?v=20261103-1">
+          href="{% static 'catalogue/dolibarr.css' %}?v=20261109-2">
   {% endif %}
 {% endblock %}
 {% block content %}
@@ -47,7 +47,7 @@
     <section class="panel dolibarr-panel dolibarr-entry">
       <div>
         <h2>Depuis une proposition commerciale</h2>
-        <p>Retrouvez les notices de vos produits à partir de votre proposition Dolibarr.</p>
+        <p>Retrouvez les notices de vos produits à partir d’une proposition commerciale ou d’une commande client.</p>
       </div>
       <a class="icon-link button primary"
          href="{% url 'dolibarr_lookup' %}">{% include "shared/icon.html" with name="file-plus" only %} Charger depuis Dolibarr</a>

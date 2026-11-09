@@ -1,4 +1,4 @@
-"""Read-only proposal retrieval and explicit matching to the local catalogue."""
+"""Read-only Dolibarr retrieval and explicit matching to the local catalogue."""
 import hashlib
 import json
 import time
@@ -7,6 +7,7 @@ from urllib.parse import quote
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from django.core.exceptions import ValidationError
+from django.db.models import TextChoices
 from django.utils.html import strip_tags
 
 from .dolibarr_config import decrypt_key, valid_api_key, validate_connection_url
@@ -19,6 +20,11 @@ TOTAL_TIMEOUT = 25
 
 class DolibarrError(Exception):
     """A safe message that may be shown without leaking API responses or keys."""
+
+
+class DolibarrRecordType(TextChoices):
+    PROPOSAL = 'proposals', 'Proposition commerciale'
+    ORDER = 'orders', 'Commande client'
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -69,24 +75,27 @@ class DolibarrClient:
             code = error.code
             error.close()
             if code in (401, 403):
-                raise DolibarrError('Dolibarr refuse cet accès. Vérifiez la clé API et les droits de lecture des propositions et produits.') from None
+                raise DolibarrError('Dolibarr refuse cet accès. Vérifiez la clé API et les droits de lecture du document et des produits.') from None
             if code == 404:
-                raise DolibarrError('La proposition ou un de ses produits est introuvable dans Dolibarr.') from None
+                raise DolibarrError('Le document ou un de ses produits est introuvable dans Dolibarr.') from None
             raise DolibarrError('Dolibarr ne peut pas répondre à cette demande. Vérifiez la connexion ou réessayez.') from None
         except (URLError, TimeoutError, OSError):
             raise DolibarrError('Impossible de joindre Dolibarr. Vérifiez la connexion ou réessayez.') from None
         except (ValueError, RecursionError, UnicodeError):
             raise DolibarrError('Dolibarr a renvoyé une réponse illisible.') from None
 
-    def proposal(self, reference):
-        proposal = self.get_json('/proposals/ref/' + quote(reference, safe=''))
-        if not isinstance(proposal, dict) or not isinstance(proposal.get('ref'), str) or proposal['ref'].casefold() != reference.casefold():
-            raise DolibarrError('Dolibarr a renvoyé une proposition différente ou invalide.')
-        lines = proposal.get('lines')
-        if lines is None and _object_id(proposal.get('id')):
-            lines = self.get_json(f"/proposals/{_object_id(proposal['id'])}/lines")
+    def read_record(self, record_type, reference):
+        endpoint = f'/{DolibarrRecordType(record_type).value}'
+        record = self.get_json(f'{endpoint}/ref/{quote(reference, safe="")}')
+        record_reference = record.get('ref') if isinstance(record, dict) else None
+        if not isinstance(record_reference, str) or record_reference.casefold() != reference.casefold():
+            raise DolibarrError('Dolibarr a renvoyé une référence différente ou invalide.')
+        lines = record.get('lines')
+        record_id = _object_id(record.get('id'))
+        if lines is None and record_id:
+            lines = self.get_json(f'{endpoint}/{record_id}/lines')
         if not isinstance(lines, list) or len(lines) > MAX_LINES or any(not isinstance(line, dict) for line in lines):
-            raise DolibarrError('Les lignes de cette proposition sont invalides ou trop nombreuses.')
+            raise DolibarrError('Les lignes du document Dolibarr sont invalides ou trop nombreuses.')
         products, entries = {}, []
         for number, line in enumerate(lines, 1):
             product_id = _object_id(line.get('fk_product', line.get('product_id')))
@@ -101,7 +110,7 @@ class DolibarrClient:
                     raise DolibarrError('Dolibarr a renvoyé une référence produit invalide.')
                 products[product_id] = product['ref'].strip()
             entries.append({'line': number, 'reference': products[product_id], 'label': label})
-        return proposal['ref'], entries
+        return record_reference, entries
 
 
 def matching_products(references):
@@ -110,8 +119,8 @@ def matching_products(references):
     ).order_by('reference')
 
 
-def match_proposal(source, reference):
-    reference, entries = DolibarrClient(source).proposal(reference)
+def match_record(source, record_type, reference):
+    reference, entries = DolibarrClient(source).read_record(record_type, reference)
     references = {entry['reference'] for entry in entries if entry['reference']}
     matches = {}
     for product in matching_products(references):

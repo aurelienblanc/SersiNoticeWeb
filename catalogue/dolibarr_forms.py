@@ -2,6 +2,7 @@ import re
 
 from django import forms
 
+from .dolibarr import DolibarrRecordType
 from .dolibarr_config import MAX_KEY_LENGTH, decrypt_key, encrypt_key, valid_api_key, validate_connection_url
 from .models import DolibarrSource, TypeExport
 
@@ -45,15 +46,19 @@ class DolibarrSourceForm(forms.ModelForm):
         return source
 
 
-class ProposalLookupForm(forms.Form):
+class DolibarrLookupForm(forms.Form):
     source = forms.ModelChoiceField(
         queryset=DolibarrSource.objects.none(), label='Source Dolibarr', empty_label='Choisir une source',
     )
+    record_type = forms.TypedChoiceField(
+        choices=DolibarrRecordType.choices, coerce=DolibarrRecordType, label='Type de document Dolibarr',
+        initial=DolibarrRecordType.PROPOSAL, required=False, empty_value=DolibarrRecordType.PROPOSAL,
+    )
     reference = forms.RegexField(
         r'^[A-Za-z0-9(][A-Za-z0-9._()/ -]*$', max_length=100,
-        label='Numéro de proposition',
-        widget=forms.TextInput(attrs={'placeholder': 'Ex. PR2611-00001', 'autocomplete': 'off'}),
-        error_messages={'invalid': 'Saisissez le numéro exact de la proposition commerciale.'},
+        label='Numéro Dolibarr',
+        widget=forms.TextInput(attrs={'placeholder': 'Ex. PR2611-00001 ou CO2611-00001', 'autocomplete': 'off'}),
+        error_messages={'invalid': 'Saisissez le numéro exact de la proposition ou de la commande.'},
     )
 
     def __init__(self, *args, **kwargs):
@@ -68,11 +73,11 @@ class ProposalLookupForm(forms.Form):
     def clean_reference(self):
         value = self.cleaned_data['reference']
         if re.search(r'(^|/)\.{1,2}(/|$)', value):
-            raise forms.ValidationError('Ce numéro de proposition est invalide.')
+            raise forms.ValidationError('Ce numéro Dolibarr est invalide.')
         return value
 
 
-class ProposalSelectionForm(forms.Form):
+class DolibarrSelectionForm(forms.Form):
     projet = forms.CharField(max_length=200, required=False, label='Nom du projet')
     client = forms.CharField(max_length=200, required=False, label='Client')
     types_export = forms.ModelMultipleChoiceField(

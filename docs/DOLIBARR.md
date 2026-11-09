@@ -2,7 +2,7 @@
 
 ## Ajouter une source
 
-Activer le module REST de Dolibarr et utiliser la clé API d’un utilisateur autorisé à lire les propositions commerciales et les produits. Les appels de ce connecteur sont exclusivement des requêtes GET. Il est compatible avec les routes de Dolibarr 22.0.5 : [propositions par référence](https://github.com/Dolibarr/dolibarr/blob/22.0.5/htdocs/comm/propal/class/api_proposals.class.php) et [produits](https://github.com/Dolibarr/dolibarr/blob/22.0.5/htdocs/product/class/api_products.class.php).
+Activer le module REST de Dolibarr et utiliser la clé API d’un utilisateur autorisé à lire les produits et les types de documents à importer. Pour les commandes clients, le compte doit disposer du droit de lecture des commandes. Le connecteur effectue des requêtes GET sur les routes des [propositions commerciales](https://github.com/Dolibarr/dolibarr/blob/22.0.5/htdocs/comm/propal/class/api_proposals.class.php), des [commandes clients](https://github.com/Dolibarr/dolibarr/blob/22.0.5/htdocs/commande/class/api_orders.class.php) et des [produits](https://github.com/Dolibarr/dolibarr/blob/22.0.5/htdocs/product/class/api_products.class.php) de Dolibarr 22.0.5.
 
 1. Ouvrir **Administration → Sources Dolibarr → Ajouter source Dolibarr**.
 2. Indiquer le nom affiché aux collaborateurs et l’adresse HTTPS de l’ERP. L’adresse peut comprendre un sous-dossier ou se terminer par `/api/index.php`.
@@ -17,18 +17,18 @@ Pour retirer temporairement un ERP du formulaire d’import, décocher **Active*
 
 Dans **Administration → Produits**, ouvrir un produit et renseigner sa **Référence Dolibarr**. Ce champ est facultatif et commun à tous les ERP. La recherche de l’administration permet de retrouver cette référence.
 
-Si la référence d’une ligne est absente du catalogue ou apparaît sur plusieurs fiches, le récapitulatif le signale. Le choix de la source détermine où lire la proposition.
+Si la référence d’une ligne est absente du catalogue ou apparaît sur plusieurs fiches, le récapitulatif le signale. Le choix de la source détermine où lire la proposition ou la commande.
 
 ## Utilisation
 
 1. Depuis la création d’un dossier, cliquer sur **Charger depuis Dolibarr**, ou ouvrir `/dolibarr/`.
-2. Choisir la source Dolibarr et saisir le numéro exact de la proposition commerciale.
+2. Choisir la source et le type de document, **Proposition commerciale** ou **Commande client**, puis saisir son numéro exact dans Dolibarr.
 3. Examiner les produits reconnus et les lignes à vérifier. Les lignes libres sans produit ERP ne peuvent pas fournir de référence documentaire. Les produits répétés sont regroupés ; un produit inactif reconnu est conservé et signalé.
-4. Choisir les documents à inclure, le nom du projet et éventuellement le client. Le projet prend initialement le numéro de proposition. Les documents expirés sont inclus sauf si l’option d’exclusion est cochée.
-5. S’il reste des lignes signalées, confirmer explicitement la préparation avec les seuls produits reconnus. Si aucun produit n’est reconnu, renseigner les correspondances dans l’administration puis recharger la proposition.
+4. Choisir les documents à inclure, le nom du projet et éventuellement le client. Le projet prend initialement le numéro de la proposition ou de la commande. Les documents expirés sont inclus sauf si l’option d’exclusion est cochée.
+5. S’il reste des lignes signalées, confirmer explicitement la préparation avec les seuls produits reconnus. Si aucun produit n’est reconnu, renseigner les correspondances dans l’administration puis recharger le document Dolibarr.
 6. Préparer le dossier, vérifier les fichiers dans le récapitulatif habituel puis télécharger le ZIP.
 
-Les correspondances et la source sont vérifiées à nouveau avant la préparation. Un récapitulatif expiré, modifié ou devenu incompatible avec le catalogue doit être rechargé. Le journal enregistre la source, la référence de proposition chargée et les compteurs.
+Les correspondances et la source sont vérifiées à nouveau avant la préparation. Un récapitulatif expiré, modifié ou devenu incompatible avec le catalogue doit être rechargé. Le journal enregistre la source, le type et la référence du document chargé ainsi que les compteurs.
 
 ## Mise à jour depuis la connexion unique
 

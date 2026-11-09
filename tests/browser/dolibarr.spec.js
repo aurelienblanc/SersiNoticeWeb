@@ -6,9 +6,11 @@ test('une proposition reconnue prépare les notices et télécharge le ZIP', asy
   await page.goto('/');
   await page.getByRole('link', { name: 'Charger depuis Dolibarr' }).click();
   await page.getByLabel('Source Dolibarr').selectOption({ label: 'ERP de test' });
-  await page.getByLabel('Numéro de proposition', { exact: true }).fill('PR-OK');
+  await page.getByLabel('Numéro Dolibarr', { exact: true }).fill('PR-OK');
   await page.getByRole('button', { name: 'Charger les produits' }).click();
-  await expect(page.getByRole('heading', { name: 'Proposition PR-OK', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Proposition commerciale PR-OK', exact: true }),
+  ).toBeVisible();
   await expect(page.locator('.proposal-products li')).toHaveCount(2);
   await expect(
     page.locator('.proposal-stats div').filter({ hasText: 'Produits reconnus' }).locator('dd'),
@@ -24,12 +26,29 @@ test('une proposition reconnue prépare les notices et télécharge le ZIP', asy
   expect((await download).suggestedFilename()).toBe('Client test - PR-OK.zip');
 });
 
+test('une commande client reconnue prépare et télécharge le ZIP', async ({ page }) => {
+  await page.goto('/dolibarr/');
+  await page.getByLabel('Source Dolibarr').selectOption({ label: 'ERP de test' });
+  await page.getByLabel('Type de document Dolibarr').selectOption({ label: 'Commande client' });
+  await page.getByLabel('Numéro Dolibarr').fill('CO-OK');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.getByRole('button', { name: 'Charger les produits' }).click();
+  await expect(page.getByRole('heading', { name: 'Commande client CO-OK' })).toBeVisible();
+  await expect(page.locator('.proposal-products li strong')).toHaveText(['AA-4']);
+  await expect(page.getByLabel('Nom du projet')).toHaveValue('CO-OK');
+  await page.getByRole('button', { name: 'Préparer le dossier', exact: true }).click();
+  await expect(page.locator('#archive-list .file-row')).toHaveCount(1);
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Télécharger le ZIP' }).click();
+  expect((await download).suggestedFilename()).toBe('CO-OK.zip');
+});
+
 test('les lignes sans correspondance sont visibles et demandent une confirmation', async ({
   page,
 }) => {
   await page.goto('/dolibarr/');
   await page.getByLabel('Source Dolibarr').selectOption({ label: 'ERP de test' });
-  await page.getByLabel('Numéro de proposition', { exact: true }).fill('PR-PARTIAL');
+  await page.getByLabel('Numéro Dolibarr', { exact: true }).fill('PR-PARTIAL');
   await page.getByRole('button', { name: 'Charger les produits' }).click();
   await page.locator('.proposal-issues summary').click();
   await expect(
@@ -49,7 +68,7 @@ test('les lignes sans correspondance sont visibles et demandent une confirmation
 test('une autre source reconnaît le produit avec la même référence Dolibarr', async ({ page }) => {
   await page.goto('/dolibarr/');
   await page.getByLabel('Source Dolibarr').selectOption({ label: 'Autre ERP de test' });
-  await page.getByLabel('Numéro de proposition').fill('PR-OK');
+  await page.getByLabel('Numéro Dolibarr').fill('PR-OK');
   await page.getByRole('button', { name: 'Charger les produits' }).click();
   await expect(page.getByText('Autre ERP de test', { exact: true })).toBeVisible();
   await expect(page.locator('.proposal-products li strong')).toHaveText(['AA-4']);

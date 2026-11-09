@@ -2,11 +2,11 @@
 
 {% load static %}
 
-{% block title %}Proposition Dolibarr · SERSI Notices{% endblock %}
-{% block page_label %}Depuis une proposition{% endblock %}
+{% block title %}Import Dolibarr · SERSI Notices{% endblock %}
+{% block page_label %}Importer depuis Dolibarr{% endblock %}
 {% block extrahead %}
   <link rel="stylesheet"
-        href="{% static 'catalogue/dolibarr.css' %}?v=20261109-1">
+        href="{% static 'catalogue/dolibarr.css' %}?v=20261109-2">
 {% endblock %}
 {% block content %}
   <a class="icon-link back-link"
@@ -14,24 +14,29 @@
   <div class="page-heading">
     <div>
       <span class="eyebrow">{{ source.nom|default:"Dolibarr" }}</span>
-      <h1>Un dossier depuis votre proposition<span class="accent">.</span></h1>
-      <p>Retrouvez automatiquement les notices des produits de votre proposition commerciale.</p>
+      <h1>Un dossier depuis Dolibarr<span class="accent">.</span></h1>
+      <p>Retrouvez les notices des produits d’une proposition commerciale ou d’une commande client.</p>
     </div>
     <div class="heading-icon">{% include "shared/icon.html" with name="file-plus" only %}</div>
   </div>
   {% if lookup_form.has_sources %}
     <section class="panel dolibarr-panel">
-      <h2>Charger la proposition</h2>
+      <h2>Charger depuis Dolibarr</h2>
       <form method="post"
             action="{% url 'dolibarr_lookup' %}"
             class="proposal-lookup-form">
         {% csrf_token %}
-        <div class="proposal-source">
+        <div class="proposal-field">
           <label for="{{ lookup_form.source.id_for_label }}">{{ lookup_form.source.label }}</label>
           {{ lookup_form.source }}
           {{ lookup_form.source.errors }}
         </div>
-        <div class="proposal-number">
+        <div class="proposal-field">
+          <label for="{{ lookup_form.record_type.id_for_label }}">{{ lookup_form.record_type.label }}</label>
+          {{ lookup_form.record_type }}
+          {{ lookup_form.record_type.errors }}
+        </div>
+        <div class="proposal-field">
           <label for="{{ lookup_form.reference.id_for_label }}">{{ lookup_form.reference.label }}</label>
           {{ lookup_form.reference }}
           {{ lookup_form.reference.errors }}
@@ -49,12 +54,13 @@
   {% if report %}
     <section class="panel dolibarr-panel">
       <div class="proposal-heading">
-        <h2>Proposition {{ report.reference }}</h2>
-        <a class="icon-link" href="{% url 'dolibarr_lookup' %}">{% include "shared/icon.html" with name="refresh-cw" only %} Charger une autre proposition</a>
+        <h2>{{ record_type.label }} {{ report.reference }}</h2>
+        <a class="icon-link"
+           href="{% url 'dolibarr_lookup' %}">{% include "shared/icon.html" with name="refresh-cw" only %} Nouvelle recherche</a>
       </div>
       <dl class="proposal-stats">
         <div>
-          <dt>Lignes de la proposition</dt>
+          <dt>Lignes du document Dolibarr</dt>
           <dd>
             {{ report.line_count }}
           </dd>
@@ -77,7 +83,7 @@
         {% for product in report.products %}
           <li><strong>{{ product.reference }}</strong><span>{{ product.nom }} · {{ product.marque.nom }}{% if not product.actif %} · Inactif{% endif %}</span><small>Dolibarr : {{ product.reference_dolibarr }}</small></li>
         {% empty %}
-          <li>Aucun produit reconnu. Renseignez les références Dolibarr dans les fiches produits, puis rechargez la proposition.</li>
+          <li>Aucun produit reconnu. Renseignez les références Dolibarr dans les fiches produits, puis rechargez le document.</li>
         {% endfor %}
       </ul>
       {% if report.issues %}

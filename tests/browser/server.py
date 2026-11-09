@@ -37,6 +37,8 @@ class DolibarrFixture(BaseHTTPRequestHandler):
             self.send_json(200, {'id': '11', 'ref': 'PR-PARTIAL', 'lines': [
                 {'fk_product': '1'}, {'fk_product': '99'}, {'fk_product': '0', 'label': 'Ligne libre'},
             ]})
+        elif self.path == '/api/index.php/orders/ref/CO-OK':
+            self.send_json(200, {'id': '12', 'ref': 'CO-OK', 'lines': [{'fk_product': '1'}]})
         elif self.path.startswith('/api/index.php/products/'):
             reference = {'1': 'ERP-AA-4', '2': 'ERP-BB-4', '99': 'SANS-CORRESPONDANCE'}.get(self.path.rsplit('/', 1)[-1])
             self.send_json(200 if reference else 404, {'ref': reference})
