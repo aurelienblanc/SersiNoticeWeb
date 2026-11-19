@@ -124,4 +124,16 @@ test('le formulaire administration garde ses contrôles visibles sur PC et mobil
     true,
   );
   await page.screenshot({ path: testInfo.outputPath('administration.png'), fullPage: true });
+
+  if (testInfo.project.name === 'pc') {
+    await page.setViewportSize({ width: 820, height: 1000 });
+  }
+  await page.goto('/admin/catalogue/typedocument/');
+  const title = page.locator('#content > h1');
+  const addDocumentType = page.locator('.object-tools .addlink');
+  await expect(addDocumentType).toBeVisible();
+  const titleBox = await title.boundingBox();
+  expect((await addDocumentType.boundingBox()).y).toBeGreaterThanOrEqual(
+    titleBox.y + titleBox.height,
+  );
 });

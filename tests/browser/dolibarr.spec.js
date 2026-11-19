@@ -108,5 +108,13 @@ test('l’administration permet de créer une source et affiche les références
   await expect(page.locator('input[name="references_dolibarr-1-reference"]')).toHaveValue(
     'ERP-AA-4-BIS',
   );
+  const references = page.locator('#references_dolibarr-group');
+  await expect(references.locator('tr.has_original').first().locator('.original p')).toBeHidden();
+  await expect(references.locator('input[name="references_dolibarr-0-DELETE"]')).toBeVisible();
+  await references.getByRole('button', { name: /Ajouter.*Référence Dolibarr/i }).click();
+  const newReference = references.locator('#references_dolibarr-3');
+  await newReference.getByRole('textbox').fill('ERP-AA-4-TEST');
+  await newReference.getByRole('button').click();
+  await expect(newReference).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
