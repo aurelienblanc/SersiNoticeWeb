@@ -11,7 +11,8 @@ from django.core.management.base import CommandError
 from django.test import Client, RequestFactory, TestCase, override_settings
 from django.utils import timezone
 
-from .models import AdministrationAccess, Marque
+from .dolibarr_config import decrypt_key
+from .models import AdministrationAccess, Categorie, DolibarrSource, Marque, Produit, Systeme
 from .admin_access import client_address
 
 
@@ -152,6 +153,75 @@ class SharedAdministrationTests(TestCase):
         response = self.client.post('/admin/catalogue/typedocument/add/', {'nom': 'Sans groupe', 'type_export': ''})
         self.assertEqual(response.status_code, 200)
         self.assertIn('type_export', response.context['adminform'].form.errors)
+
+    def test_four_dolibarr_sources_can_be_managed_without_exposing_their_keys(self):
+        base = '/admin/catalogue/dolibarrsource/'
+        key = 'fake-erp-admin-key'
+        self.assertEqual(self.client.get(base).status_code, 302)
+        self.assertEqual(self.client.post(base + 'add/', {'cle_api': key}).status_code, 302)
+        self.assertEqual(DolibarrSource.objects.count(), 0)
+        self.connect()
+        self.assertContains(self.client.get('/admin/'), 'Sources Dolibarr')
+        for number in range(4):
+            url = f'https://erp-{number}.example.test'
+            response = self.client.post(base + 'add/', {
+                'nom': f'ERP {number}', 'url': url + '/api/index.php/', 'cle_api': key, 'active': 'on',
+            })
+            self.assertEqual(response.status_code, 302)
+        self.assertEqual(DolibarrSource.available().count(), 4)
+        source = DolibarrSource.objects.get(nom='ERP 0')
+        self.assertEqual(source.url, 'https://erp-0.example.test')
+        self.assertEqual(decrypt_key(source.url, source.cle_chiffree), key)
+        self.assertNotEqual(source.cle_chiffree, key)
+        change = f'{base}{source.pk}/change/'
+        self.assertNotContains(self.client.get(change), key)
+        self.assertNotContains(self.client.get(base), source.cle_chiffree)
+        self.assertNotContains(self.client.get('/dolibarr/'), key)
+        self.assertFalse(LogEntry.objects.filter(change_message__contains=key).exists())
+        fields = {'nom': source.nom, 'url': source.url, 'active': 'on'}
+        self.assertEqual(self.client.post(change, fields).status_code, 302)
+        self.assertContains(self.client.post(change, {**fields, 'url': 'https://new.example.test'}),
+                            'Saisissez une clé API pour activer cette source.')
+        self.assertEqual(self.client.post(change, {**fields, 'active': ''}).status_code, 302)
+        self.assertNotContains(self.client.get('/dolibarr/'), source.nom)
+        source.refresh_from_db()
+        self.assertEqual(decrypt_key(source.url, source.cle_chiffree), key)
+
+    def test_product_dolibarr_references_can_be_added_searched_and_removed(self):
+        brand = Marque.objects.create(nom='Marque ERP')
+        category = Categorie.objects.create(nom='Catégorie ERP')
+        system = Systeme.objects.create(nom='Système ERP')
+        product = Produit.objects.create(reference='APP-01', nom='Produit ERP', marque=brand, categorie=category)
+        product.systemes.add(system)
+        self.connect()
+        url = f'/admin/catalogue/produit/{product.pk}/change/'
+        self.assertContains(self.client.get(url), 'name="references_dolibarr-0-reference"')
+        data = {'reference': product.reference, 'nom': product.nom, 'marque': brand.pk,
+                'categorie': category.pk, 'actif': 'on', 'systemes': [system.pk], '_save': 'Enregistrer'}
+        first = 'ERP-ASD/01'
+        second = 'ERP-ASD/02'
+        prefix = 'references_dolibarr'
+        add = {
+            **data, f'{prefix}-TOTAL_FORMS': 2, f'{prefix}-INITIAL_FORMS': 0,
+            f'{prefix}-0-reference': f'  {first}  ', f'{prefix}-1-reference': second,
+        }
+        duplicate = self.client.post(url, {**add, f'{prefix}-1-reference': first})
+        self.assertEqual(duplicate.status_code, 200)
+        self.assertTrue(duplicate.context['inline_admin_formsets'][0].formset.non_form_errors())
+        self.assertFalse(product.references_dolibarr.exists())
+        self.assertEqual(self.client.post(url, add).status_code, 302)
+        self.assertEqual(list(product.references_dolibarr.values_list('reference', flat=True)), [first, second])
+        response = self.client.get('/admin/catalogue/produit/', {'q': second})
+        self.assertEqual(list(response.context['cl'].queryset.values_list('pk', flat=True)), [product.pk])
+        first_row, second_row = product.references_dolibarr.all()
+        response = self.client.post(url, {
+            **add, f'{prefix}-INITIAL_FORMS': 2, f'{prefix}-0-id': first_row.pk,
+            f'{prefix}-1-id': second_row.pk, f'{prefix}-0-DELETE': 'on',
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(list(product.references_dolibarr.values_list('reference', flat=True)), [second])
+        product.refresh_from_db()
+        self.assertEqual(product.reference, 'APP-01')
 
     def test_password_change_checks_current_password_strength_and_confirmation(self):
         self.connect()

@@ -10,7 +10,7 @@ from django.views.decorators.http import require_GET, require_POST
 from .exports import archive_filename, build_archive_tree, build_plan, create_archive
 from .forms import SelectionForm
 from .journal import record_event
-from .models import Categorie, Document, ExportRecord, Marque, Produit, Systeme, TypeExport
+from .models import Categorie, Document, DolibarrSource, ExportRecord, Marque, Produit, Systeme, TypeExport
 
 TOKEN_SALT = 'sersi-export-selection-v1'
 
@@ -29,6 +29,7 @@ def catalogue_context(form=None):
         'nombre_documents': Document.objects.count(),
         'nombre_expires': Document.objects.filter(date_expiration__lt=timezone.localdate()).count(),
         'nombre_marques': Marque.objects.count(),
+        'dolibarr_enabled': DolibarrSource.available().exists(),
     }
 
 
@@ -40,7 +41,10 @@ def index(request):
 @require_POST
 @never_cache
 def preview(request):
-    form = SelectionForm(request.POST)
+    return render_selection_preview(request, SelectionForm(request.POST))
+
+
+def render_selection_preview(request, form):
     if not form.is_valid():
         return render(request, 'catalogue/index.html', catalogue_context(form), status=400)
     selection = form.selection()

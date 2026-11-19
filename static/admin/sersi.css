@@ -202,6 +202,10 @@ div.breadcrumbs {
 #content {
   padding: 32px 34px 45px;
 }
+#content > h1,
+#content > h2 {
+  overflow-wrap: anywhere;
+}
 #content > h1 {
   font-size: 26px;
   color: var(--sersi-navy);
@@ -567,17 +571,34 @@ tbody tr:hover {
   padding: 17px 20px;
   border-top: 1px solid var(--sersi-silver);
 }
-.object-tools a {
+.object-tools {
+  display: flex;
+  float: none;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 0 0 16px;
+  overflow: visible;
+}
+.object-tools li,
+.object-tools li + li {
+  float: none;
+  height: auto;
+  margin: 0;
+}
+.object-tools a:any-link {
+  display: flex;
+  align-items: center;
+  float: none;
+  min-height: 42px;
   border-radius: 6px;
   padding: 11px 17px;
   font-size: 11px;
   letter-spacing: 0.1px;
   text-transform: none;
 }
-.object-tools {
-  margin-top: -60px;
-}
-fieldset.module {
+fieldset.module,
+.inline-group .tabular fieldset.module {
   background: var(--sersi-white);
   border: 1px solid var(--sersi-silver);
   border-radius: 9px;
@@ -586,12 +607,58 @@ fieldset.module {
 }
 .module h2,
 .module caption,
-.inline-group h2 {
+.inline-group h2,
+fieldset.module.collapse > details > summary {
   background: var(--sersi-blue-soft);
   color: var(--sersi-navy);
   font-size: 12px;
   padding: 14px 20px;
   font-weight: 600;
+}
+.module > .fieldset-heading,
+.module > .inline-heading,
+fieldset.module.collapse > details > summary {
+  border: 0;
+  border-bottom: 1px solid var(--sersi-silver);
+}
+fieldset.module.collapse > details:not([open]) > summary {
+  border-bottom: 0;
+}
+fieldset.module.collapse > details > summary:focus-visible {
+  outline: 2px solid var(--sersi-navy);
+  outline-offset: -3px;
+}
+.inline-group .tabular thead th {
+  border-top: 0;
+}
+/* The inline's original label repeats the reference already shown in the input. */
+#references_dolibarr-group .original p {
+  display: none;
+}
+#references_dolibarr-group tr.has_original td:not(.original) {
+  padding-top: 13px;
+}
+#references_dolibarr-group .column-reference {
+  width: 100%;
+}
+#references_dolibarr-group .field-reference input {
+  width: min(520px, 100%);
+  min-width: 0;
+}
+#references_dolibarr-group thead th:last-child,
+#references_dolibarr-group td.delete {
+  text-align: center;
+  white-space: nowrap;
+}
+#references_dolibarr-group .inline-deletelink {
+  display: inline-block;
+  float: none;
+  margin: 0;
+  vertical-align: middle;
+  background-position: center;
+}
+.inline-group .tabular tr.add-row td {
+  border-bottom: 0;
 }
 .form-row {
   padding: 17px 22px;
@@ -1125,7 +1192,7 @@ select:focus {
     grid-template-columns: 1fr;
   }
   .object-tools {
-    margin-top: 0;
+    justify-content: flex-start;
   }
   #changelist #toolbar form input[type='text'] {
     min-width: 0;
@@ -1588,7 +1655,6 @@ select:focus {
     min-width: 0;
   }
   .dashboard-heading h1,
-  #content > h1,
   .confirmation-summary {
     overflow-wrap: anywhere;
   }

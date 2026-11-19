@@ -21,6 +21,7 @@ const names = {
   'key-round': 'KeyRound',
   settings: 'Settings',
   'database-backup': 'DatabaseBackup',
+  database: 'Database',
   'shield-check': 'ShieldCheck',
   'rotate-ccw': 'RotateCcw',
   upload: 'Upload',

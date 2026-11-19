@@ -19,6 +19,8 @@
      href="{% url 'admin:catalogue_categorie_changelist' %}">{% include "shared/icon.html" with name="layers" only %} Catégories</a>
   <a {% if '/systeme/' in request.path %}class="icon-link active"{% endif %}
      href="{% url 'admin:catalogue_systeme_changelist' %}">{% include "shared/icon.html" with name="network" only %} Systèmes</a>
+  <a {% if '/dolibarrsource/' in request.path %}class="icon-link active"{% endif %}
+     href="{% url 'admin:catalogue_dolibarrsource_changelist' %}">{% include "shared/icon.html" with name="database" only %} Sources Dolibarr</a>
   <span class="nav-section">CLASSEMENT DES DOCUMENTS</span>
   <a {% if '/typedocument/' in request.path %}class="icon-link active"{% endif %}
      href="{% url 'admin:catalogue_typedocument_changelist' %}">{% include "shared/icon.html" with name="files" only %} Types de documents</a>

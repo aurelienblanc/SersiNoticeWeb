@@ -157,6 +157,41 @@ class Produit(models.Model):
         return f'{self.reference} · {self.nom}'
 
 
+class ReferenceDolibarr(models.Model):
+    produit = models.ForeignKey(Produit, on_delete=models.CASCADE, related_name='references_dolibarr')
+    reference = models.CharField('référence', max_length=255, db_index=True)
+
+    class Meta:
+        ordering = ['reference']
+        verbose_name = 'référence Dolibarr'
+        verbose_name_plural = 'références Dolibarr'
+        constraints = [
+            models.UniqueConstraint(fields=['produit', 'reference'], name='unique_dolibarr_reference_per_product'),
+        ]
+
+    def __str__(self):
+        return self.reference
+
+
+class DolibarrSource(models.Model):
+    nom = models.CharField('nom', max_length=200)
+    url = models.URLField('adresse de Dolibarr', max_length=2000, unique=True, blank=True)
+    active = models.BooleanField('active', default=True)
+    cle_chiffree = models.TextField(blank=True, editable=False, serialize=False)
+
+    class Meta:
+        ordering = ['nom', 'pk']
+        verbose_name = 'source Dolibarr'
+        verbose_name_plural = 'sources Dolibarr'
+
+    def __str__(self):
+        return self.nom
+
+    @classmethod
+    def available(cls):
+        return cls.objects.filter(active=True).exclude(url='').exclude(cle_chiffree='')
+
+
 class ExportRecord(models.Model):
     created_at = models.DateTimeField('date', auto_now_add=True)
     projet = models.CharField('projet', max_length=200, blank=True)
